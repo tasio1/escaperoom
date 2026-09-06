@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title id="pageTitle">The Sentence Lab — Station 03</title>
+<style>
+/* ============================================================
+   GRAMMAR ESCAPE-ROOM STATION 3 — "THE SENTENCE LAB"
+   Interstellar skin: black-hole (Gargantua) canvas background,
+   amber/white HUD panels, drag-and-drop word tiles.
+   Same engine as Stations 1 & 2. No external fonts, images or
+   libraries — it works offline.
+   ============================================================ */
+
+:root{
+  --bg:#000000;
+  --panel:rgba(4,6,10,.90);
+  --panel-2:rgba(8,11,17,.93);
+  --line:rgba(255,180,90,.26);
+  --line-soft:rgba(205,222,240,.16);
+  --text:#e6ecf2;
+  --muted:#8d9aa8;
+  --gold:#ffb45a;
+  --gold-soft:#ffd9a3;
+  --green:#7ce0b8;
+  --green-dim:#2c6b58;
+  --yellow:#ffc36b;
+  --red:#ff5f52;
+  --cyan:#a9c6dc;
+  --mono:ui-monospace,"SFMono-Regular","JetBrains Mono","Cascadia Mono",Consolas,"Liberation Mono",monospace;
+  --sans:"Segoe UI",Inter,system-ui,-apple-system,Roboto,Arial,sans-serif;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:19px;line-height:1.55;min-height:100%;
+}
+
+/* the canvas now renders the black hole (see the BLACK HOLE block in the script) */
+#matrix{position:fixed;inset:0;z-index:0;opacity:1;pointer-events:none}
+
+/* faint navigation grid */
+.grid-overlay{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background-image:linear-gradient(rgba(205,222,240,.045) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(205,222,240,.045) 1px,transparent 1px);
+  background-size:90px 90px;
+  mask-image:radial-gradient(circle at 50% 40%,transparent 0%,#000 68%);
+  -webkit-mask-image:radial-gradient(circle at 50% 40%,transparent 0%,#000 68%);
+}
+/* cockpit-glass sheen */
+.scanlines{
+  position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.6;
+  background:radial-gradient(ellipse at 50% 46%,transparent 62%,rgba(0,0,0,.5) 100%);
+}
+.wrap{position:relative;z-index:3;max-width:1000px;margin:0 auto;padding:22px 20px 80px}
+
+/* ---------- header ---------- */
+header.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  border:1px solid var(--line-soft);border-radius:4px;
+  background:rgba(4,6,10,.72);backdrop-filter:blur(6px);
+  padding:12px 16px;margin-bottom:18px;
+}
+.brand{font-family:var(--mono);letter-spacing:.24em;font-size:13px;color:var(--gold);text-transform:uppercase}
+.brand small{display:block;color:var(--muted);letter-spacing:.26em;font-size:10px;margin-top:3px}
+.topright{display:flex;align-items:center;gap:12px}
+#teamBadge{
+  font-family:var(--mono);font-size:13px;letter-spacing:.14em;color:#0d0a05;
+  background:linear-gradient(180deg,var(--gold-soft),var(--gold));
+  border-radius:3px;padding:6px 14px;display:none;font-weight:700;
+  box-shadow:0 0 22px rgba(255,180,90,.35);
+}
+
+/* ---------- progress rail ---------- */
+.rail{display:flex;align-items:stretch;gap:10px;margin-bottom:18px}
+.rail .step{
+  position:relative;overflow:hidden;flex:1;
+  border:1px solid var(--line-soft);border-radius:4px;background:rgba(4,6,10,.7);
+  padding:10px 14px 12px;font-family:var(--mono);font-size:12px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px;transition:.25s;
+}
+.rail .step::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:#1b232e;transition:.25s}
+.rail .dot{width:8px;height:8px;border-radius:50%;background:#243040;flex:none}
+.rail .step.g.active{color:var(--green);border-color:rgba(124,224,184,.45)}
+.rail .step.g.active .dot{background:var(--green);box-shadow:0 0 12px var(--green)}
+.rail .step.g.active::after{background:var(--green);box-shadow:0 0 14px var(--green)}
+.rail .step.y.active{color:var(--yellow);border-color:rgba(255,195,107,.45)}
+.rail .step.y.active .dot{background:var(--yellow);box-shadow:0 0 12px var(--yellow)}
+.rail .step.y.active::after{background:var(--yellow);box-shadow:0 0 14px var(--yellow)}
+.rail .step.r.active{color:var(--red);border-color:rgba(255,95,82,.45)}
+.rail .step.r.active .dot{background:var(--red);box-shadow:0 0 12px var(--red)}
+.rail .step.r.active::after{background:var(--red);box-shadow:0 0 14px var(--red)}
+.rail .step.done{color:#b6c4d2;border-color:rgba(205,222,240,.24)}
+.rail .step.done .dot{background:var(--green-dim)}
+.rail .step.done::after{background:var(--green-dim)}
+
+/* ---------- panels: HUD plates with corner brackets ---------- */
+.panel{
+  position:relative;border:1px solid var(--line-soft);border-radius:4px;
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  padding:28px 26px 30px;margin-bottom:18px;backdrop-filter:blur(6px);
+  box-shadow:0 24px 70px rgba(0,0,0,.7);
+}
+.panel::before,.panel::after{
+  content:"";position:absolute;width:16px;height:16px;border:1px solid var(--gold);opacity:.75;pointer-events:none;
+}
+.panel::before{top:8px;left:8px;border-right:0;border-bottom:0}
+.panel::after{bottom:8px;right:8px;border-left:0;border-top:0}
+.panel.green{border-color:rgba(124,224,184,.3)}
+.panel.yellow{border-color:rgba(255,195,107,.3)}
+.panel.red{border-color:rgba(255,95,82,.3)}
+
+h1{
+  font-family:var(--mono);font-size:clamp(28px,4.8vw,46px);letter-spacing:.16em;margin:.1em 0;
+  color:#f4f8fb;text-shadow:0 0 34px rgba(255,180,90,.45);text-transform:uppercase;font-weight:400;
+}
+h2{font-family:var(--mono);font-size:20px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 6px;font-weight:400}
+h3{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin:0 0 14px;font-weight:400}
+.sub{font-family:var(--mono);letter-spacing:.26em;color:var(--gold);text-transform:uppercase;font-size:13px}
+.intro{
+  border-left:2px solid var(--gold);background:rgba(255,180,90,.06);
+  padding:14px 18px;margin:22px 0;font-size:19px;
+}
+.muted{color:var(--muted)}
+.center{text-align:center}
+
+/* ---------- controls ---------- */
+label.fieldlabel{display:block;font-family:var(--mono);letter-spacing:.22em;text-transform:uppercase;font-size:12px;color:var(--muted);margin-bottom:8px}
+input[type=text]{
+  width:100%;font-family:var(--mono);font-size:19px;color:var(--gold-soft);
+  background:rgba(0,0,0,.6);border:1px solid rgba(255,180,90,.28);border-radius:3px;
+  padding:14px 16px;outline:none;letter-spacing:.02em;
+}
+input[type=text]:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,180,90,.14)}
+/* answers are whole sentences: the box is a full-width readout line */
+input.blank{display:block;width:100%;min-width:0;margin:12px 0 0;font-size:18px;padding:12px 14px}
+input.blank.ok{border-color:var(--green);color:var(--green);background:rgba(124,224,184,.08)}
+input.blank.bad{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,95,82,.14)}
+input:disabled{opacity:1;cursor:not-allowed}
+button{
+  font-family:var(--mono);letter-spacing:.2em;text-transform:uppercase;font-size:15px;font-weight:700;
+  color:#140d04;background:linear-gradient(180deg,var(--gold-soft),var(--gold));
+  border:none;border-radius:3px;padding:16px 26px;cursor:pointer;
+  box-shadow:0 0 32px rgba(255,180,90,.25);transition:.18s;
+}
+button:hover{filter:brightness(1.1);transform:translateY(-1px)}
+button:active{transform:translateY(0)}
+button.ghost{background:transparent;color:var(--text);border:1px solid var(--line-soft);box-shadow:none}
+button.ghost:hover{border-color:var(--gold);color:var(--gold)}
+button.yellow{background:linear-gradient(180deg,#ffdca2,#f5a623);color:#1d1400}
+button.red{background:linear-gradient(180deg,#ff9d94,#e0392c);color:#210603}
+button.danger{background:linear-gradient(180deg,#ff9d94,#e0392c);color:#210603}
+.btnrow{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
+.err{color:var(--red);font-family:var(--mono);font-size:14px;margin-top:12px;min-height:22px}
+
+/* ---------- questions ---------- */
+.qlist{list-style:none;padding:0;margin:16px 0 0}
+.qitem{
+  border:1px solid var(--line-soft);border-radius:4px;background:rgba(3,5,9,.66);
+  padding:16px 18px;margin-bottom:12px;display:flex;gap:14px;align-items:flex-start;
+}
+.qitem.ok{border-color:rgba(124,224,184,.45);background:rgba(124,224,184,.06)}
+.qitem.bad{border-color:rgba(255,95,82,.45)}
+.qnum{font-family:var(--mono);font-size:12px;color:var(--gold);min-width:36px;padding-top:6px;letter-spacing:.1em;opacity:.8}
+.qbody{flex:1}
+.qtext{font-size:18px;line-height:1.7;font-family:var(--mono);color:#cfd9e3;white-space:pre-line}
+.mark{font-family:var(--mono);font-size:14px;margin-top:8px;min-height:20px;letter-spacing:.08em}
+.mark.ok{color:var(--green)}
+.mark.bad{color:var(--red)}
+.counter{font-family:var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);font-size:13px}
+.bigscore{font-family:var(--mono);font-size:clamp(26px,5.4vw,42px);letter-spacing:.08em;margin:6px 0}
+.bar{height:6px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden;margin:14px 0 6px}
+.bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2c6b58,var(--green));transition:width .45s ease;box-shadow:0 0 14px rgba(124,224,184,.5)}
+.bar.y > i{background:linear-gradient(90deg,#b57a1d,var(--yellow))}
+.bar.r > i{background:linear-gradient(90deg,#8f2a22,var(--red))}
+
+/* ---------- DRAG-AND-DROP WORD TILES ---------- */
+.tilewrap{margin:6px 0 2px}
+.slotline{
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+  min-height:60px;padding:10px 12px;border:1px dashed rgba(255,180,90,.45);border-radius:4px;
+  background:linear-gradient(180deg,rgba(255,180,90,.07),rgba(255,180,90,.02));
+  transition:.15s;
+}
+.slotline.over{border-color:var(--gold);background:rgba(255,180,90,.14);box-shadow:0 0 0 3px rgba(255,180,90,.12)}
+.slothint{font-family:var(--mono);font-size:13px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.bank{
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;
+  padding:10px 12px;border:1px solid var(--line-soft);border-radius:4px;background:rgba(255,255,255,.02);transition:.15s;
+}
+.bank.over{border-color:var(--gold);background:rgba(255,180,90,.08)}
+.bank::before{
+  content:"WORD BANK";flex-basis:100%;font-family:var(--mono);font-size:11px;
+  letter-spacing:.24em;color:var(--muted);margin-bottom:2px;
+}
+.bank:empty::before{content:"WORD BANK — EMPTY"}
+.tile{
+  font-family:var(--mono);font-size:16px;letter-spacing:.02em;color:var(--gold-soft);
+  background:linear-gradient(180deg,rgba(255,180,90,.16),rgba(255,180,90,.06));
+  border:1px solid rgba(255,180,90,.45);border-radius:3px;
+  padding:8px 12px;cursor:grab;user-select:none;transition:.12s;white-space:nowrap;
+}
+.tile:hover{background:rgba(255,180,90,.26);border-color:var(--gold);transform:translateY(-1px)}
+.tile:active{cursor:grabbing}
+.tile.placed{color:#0f0a04;background:linear-gradient(180deg,var(--gold-soft),var(--gold));border-color:var(--gold-soft);font-weight:700}
+.tile.dragging{opacity:.35}
+.tiletools{margin-top:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.tilehint{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.tilereset{
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;padding:6px 12px;
+  background:transparent;color:var(--muted);border:1px solid var(--line-soft);box-shadow:none;border-radius:3px;
+}
+.tilereset:hover{color:var(--gold);border-color:var(--gold);transform:none}
+input.blank{font-size:17px;color:var(--gold-soft)}
+
+/* ---------- answer review ---------- */
+.fill{font-family:var(--mono);font-weight:700;padding:2px 8px;border-radius:3px}
+.fill.good{color:var(--green);background:rgba(124,224,184,.12);border:1px solid rgba(124,224,184,.4)}
+.alsook{font-family:var(--mono);font-size:14px;color:var(--green);margin-top:8px;opacity:.9;white-space:normal}
+.yours{font-family:var(--mono);font-size:15px;color:var(--red);margin-top:6px}
+.yours.ok{color:var(--green)}
+.review-note{border-left:2px solid var(--gold);background:rgba(255,180,90,.06);padding:12px 16px;font-size:16px;margin:16px 0}
+
+/* ---------- clue ---------- */
+.clue-card{
+  position:relative;border:1px solid var(--gold);border-radius:4px;
+  background:radial-gradient(circle at 50% 45%,rgba(255,180,90,.20),rgba(255,180,90,.03) 70%);
+  padding:32px;text-align:center;margin:24px 0;
+  box-shadow:0 0 70px rgba(255,180,90,.18) inset,0 0 40px rgba(255,180,90,.12);
+  animation:pop .5s ease;
+}
+@keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+.clue-word{
+  font-family:var(--mono);font-size:clamp(34px,8vw,64px);letter-spacing:.3em;color:var(--gold-soft);
+  text-shadow:0 0 40px rgba(255,180,90,.7);
+}
+
+/* ---------- summary ---------- */
+.rows{margin:18px 0}
+.row{display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid rgba(141,154,168,.18);padding:12px 2px;font-size:18px}
+.row b{font-family:var(--mono)}
+.total{font-family:var(--mono);font-size:clamp(24px,4.6vw,38px);color:var(--gold);letter-spacing:.1em;margin-top:14px;text-shadow:0 0 28px rgba(255,180,90,.4)}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:15px;margin-top:12px}
+th,td{border-bottom:1px solid rgba(141,154,168,.18);padding:10px 8px;text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);text-transform:uppercase;letter-spacing:.16em;font-size:11px}
+tr.win td{color:var(--gold)}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.tag{font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:3px;padding:5px 12px;color:var(--gold-soft);background:rgba(255,180,90,.06)}
+
+/* ---------- teacher modal ---------- */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.86);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.modal.open{display:flex}
+.modal .box{max-width:820px;width:100%;border:1px solid var(--line);border-radius:4px;background:#05070b;padding:26px}
+.hidden{display:none !important}
+.filestatus{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:10px}
+@media (max-width:680px){
+  body{font-size:17px}
+  .rail{flex-direction:column}
+  .qtext{font-size:16px}
+  .tile{font-size:15px;padding:9px 11px}
+  .slothint{font-size:11px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important}
+}
+
+/* teacher's force-finish button (engine feature) */
+.finish-btn{
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;
+  background:transparent;color:var(--red);border:1px solid rgba(255,95,82,.5);
+  border-radius:3px;padding:8px 14px;cursor:pointer;transition:.15s;box-shadow:none;
+}
+.finish-btn:hover{background:rgba(255,95,82,.14);border-color:var(--red);color:var(--red);transform:none}
+</style>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+<div class="grid-overlay"></div>
+<div class="scanlines"></div>
+
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand"><span id="brandName">Grammar Station</span><small id="brandStation">Station 00</small></div>
+    <div class="topright">
+      <span id="teamBadge"></span>
+      <button class="finish-btn hidden" id="finishStationBtn">Finish the station</button>
+    </div>
+  </header>
+
+  <div class="rail" id="rail">
+    <div class="step g" id="railG"><span class="dot"></span><span id="railGLabel">Green</span></div>
+    <div class="step y" id="railY"><span class="dot"></span><span id="railYLabel">Yellow</span></div>
+    <div class="step r" id="railR"><span class="dot"></span><span id="railRLabel">Red</span></div>
+  </div>
+
+  <!-- ============ START ============ -->
+  <section class="panel" id="screen-start">
+    <div class="center">
+      <h1 id="startTitle">Grammar Station</h1>
+      <div class="sub" id="startSubtitle">Station 00 — Grammar Topic</div>
+    </div>
+    <div class="intro" id="introText">
+      Write two short story lines here.
+    </div>
+    <label class="fieldlabel" for="teamInput">Enter your team name</label>
+    <input type="text" id="teamInput" autocomplete="off" spellcheck="false" placeholder="e.g. Grammar Warriors">
+    <div class="err" id="startErr"></div>
+    <div class="btnrow"><button id="startBtn"></button></div>
+    <div style="margin-top:26px">
+      <h3 style="margin-bottom:8px">Mission log</h3>
+      <div class="tags" id="teamsList"></div>
+    </div>
+  </section>
+
+  <!-- ============ GREEN ============ -->
+  <section class="panel green hidden" id="screen-green">
+    <h2 style="color:var(--green)" id="greenTitle">Green</h2>
+    <h3 id="greenSubheading">Complete the mission</h3>
+    <p class="muted" style="font-size:17px" id="greenInstructions">Fill in every gap. You may try as many times as you need. Correct answers lock automatically.</p>
+    <div class="bar"><i id="greenBar"></i></div>
+    <div class="counter" id="greenCounter">0 / 0</div>
+    <ul class="qlist" id="greenList"></ul>
+    <div class="err" id="greenMsg"></div>
+    <div class="btnrow"><button id="greenCheck">Check answers</button></div>
+  </section>
+
+  <!-- ============ CLUE ============ -->
+  <section class="panel green hidden" id="screen-clue">
+    <div class="center">
+      <h1 style="font-size:clamp(26px,5vw,40px)" id="greenCompleteHeadline">Green completed</h1>
+      <div class="sub">Green completed — 10 / 10</div>
+      <div class="clue-card">
+        <h3 style="margin-bottom:6px">Clue unlocked</h3>
+        <div class="clue-word" id="clueWord"></div>
+        <p style="margin:14px 0 0;font-size:16px;color:var(--red);font-weight:700">Write this clue down. You will need it at the end of the escape room.</p>
+      </div>
+      <p class="muted" style="font-size:17px">Green gives <b>0 competition points</b>. Points start now.</p>
+      <div class="btnrow" style="justify-content:center"><button class="yellow" id="toYellow">Continue to Yellow</button></div>
+    </div>
+  </section>
+
+  <!-- ============ YELLOW ============ -->
+  <section class="panel yellow hidden" id="screen-yellow">
+    <h2 style="color:var(--yellow)" id="yellowTitle">Yellow</h2>
+    <h3><span id="yellowCounter">Question 1 / 5</span> &nbsp;·&nbsp; +1 point per correct answer</h3>
+    <div class="bar y"><i id="yellowBar"></i></div>
+    <p class="muted" style="font-size:16px">One attempt only. Your first answer counts.</p>
+    <div id="yellowQ" class="qtext" style="margin:22px 0 6px"></div>
+    <div class="err" id="yellowErr"></div>
+    <div class="btnrow"><button class="yellow" id="yellowSubmit">Submit answer</button></div>
+  </section>
+
+  <!-- ============ YELLOW REVIEW ============ -->
+  <section class="panel yellow hidden" id="screen-yellow-review">
+    <h2 style="color:var(--yellow)">Yellow — correct answers</h2>
+    <h3 id="yellowReviewTopic">Grammar topic</h3>
+    <div class="center bigscore" style="color:var(--yellow);font-size:clamp(22px,3.4vw,32px)" id="yellowScoreBig"></div>
+    <div class="review-note">Read the correct version of every sentence. Your Yellow score is already saved and cannot change.</div>
+    <ul class="qlist" id="yellowReview"></ul>
+    <div class="btnrow"><button class="red" id="toRed">Continue to Red</button></div>
+  </section>
+
+  <!-- ============ RED ============ -->
+  <section class="panel red hidden" id="screen-red">
+    <h2 style="color:var(--red)" id="redTitle">Red</h2>
+    <h3><span id="redCounter">Question 1 / 5</span> &nbsp;·&nbsp; +2 points per correct answer</h3>
+    <div class="bar r"><i id="redBar"></i></div>
+    <p class="muted" style="font-size:16px">One attempt only. Your first answer counts.</p>
+    <div id="redQ" class="qtext" style="margin:22px 0 6px"></div>
+    <div class="err" id="redErr"></div>
+    <div class="btnrow"><button class="red" id="redSubmit">Submit answer</button></div>
+  </section>
+
+  <!-- ============ RED REVIEW ============ -->
+  <section class="panel red hidden" id="screen-red-review">
+    <h2 style="color:var(--red)">Red — correct answers</h2>
+    <h3 id="redReviewTopic">Grammar topic</h3>
+    <div class="center bigscore" style="color:var(--red);font-size:clamp(22px,3.4vw,32px)" id="redScoreBig"></div>
+    <div class="review-note">Read the correct version of every sentence. Your Red score is already saved and cannot change.</div>
+    <ul class="qlist" id="redReview"></ul>
+    <div class="btnrow"><button id="toEnd">See final score</button></div>
+  </section>
+
+  <!-- ============ END ============ -->
+  <section class="panel hidden" id="screen-end">
+    <div class="center">
+      <div class="sub" style="margin-bottom:4px" id="endStationLabel">Station 00</div>
+      <h1 style="font-size:clamp(24px,4.6vw,38px)" id="missionCompleteHeadline">Station mission completed</h1>
+      <div class="sub" id="endTeam"></div>
+    </div>
+    <div class="rows" id="endRows"></div>
+    <div class="center total" id="endTotal"></div>
+    <div class="center" id="allDone"></div>
+    <div class="btnrow" style="justify-content:center">
+      <button id="nextTeam">Next team →</button>
+      <button class="ghost" id="endExport">Save results.md</button>
+    </div>
+  </section>
+</div>
+
+
+<script>
+/* ==================================================================
+   ██  EDIT YOUR CONTENT HERE — SECTION 1: IDENTITY & LABELS  ██
+   ------------------------------------------------------------------
+   Everything in CONFIG controls the station's name, story framing and
+   on-screen wording. None of it affects scoring or game logic — it is
+   pure text/HTML that gets written into the page when the game boots.
+   ================================================================== */
+const CONFIG = {
+  gameName: "The Sentence Lab",
+  stationLabel: "Station 03",
+  subtitle: "Station 3 — Word Order",
+  introHTML: "The hacker scrambled every message the school sent this morning. " +
+             "The words are all still there, but they came back in the wrong order — like a signal that fell into a black hole and came out broken.<br><br>" +
+             "You are in <b>The Sentence Lab</b>. Rebuild each message in the correct English word order before the signal is lost.",
+
+  green: {
+    railLabel: "Green — Basic word order",
+    panelTitle: "Green — Basic word order",
+    subheading: "Damaged transmissions · Subject – Verb – Object – Place – Time",
+    instructionsHTML: "<b>Drag the word tiles</b> into the line above them — or just tap them — until the message is in the correct order. " +
+                      "You can drag tiles around to change their order, and <b>Reset words</b> starts that sentence again. " +
+                      "You may check as many times as you need; a correct message locks itself.",
+    progressLabel: "Messages restored",
+    completeHeadline: "All messages restored"
+  },
+  yellow: {
+    railLabel: "Yellow — Adverbs, negatives, questions",
+    panelTitle: "Yellow — Adverbs, negatives and questions",
+    reviewTopic: "Adverbs, negatives and questions"
+  },
+  red: {
+    railLabel: "Red — Subordinate clauses",
+    panelTitle: "Red — Subordinate clauses and complex word order",
+    reviewTopic: "Subordinate clauses and complex word order"
+  },
+
+  missionCompleteHeadline: "Transmission restored",
+  allTeamsHeadline: "Every team has been through the lab",
+  startButtonLabel: "Enter the Sentence Lab"
+};
+
+/* ==================================================================
+   ██  EDIT YOUR CONTENT HERE — SECTION 2: QUESTIONS  ██
+   ------------------------------------------------------------------
+   HOW A QUESTION WORKS
+   --------------------
+   "question"  the text shown above the answer box. The  ___  (three
+               underscores) becomes the answer box itself.
+   "chunks"    OPTIONAL. If present, the question becomes a
+               DRAG-AND-DROP task: each string is one word tile, and
+               the assembled sentence is written into the answer box.
+               Green and Yellow have chunks; Red does not, so Red is
+               typed by hand. Delete a "chunks" line to turn that one
+               question back into a typing task.
+   "answers"   the accepted sentence(s), wrapped in ok().
+   "also"      OPTIONAL. A second correct word order, printed under the
+               model answer on the review screen as "Also correct: ...".
+               It does not affect marking — list it in ok() as well.
+
+   ok("Sentence one.", "A second acceptable order.")
+   automatically also accepts each sentence written WITHOUT its final
+   full stop / question mark. COMMAS ARE IGNORED COMPLETELY — a team
+   may leave them out or add extra ones and still be marked correct. The FIRST sentence you list is the one
+   shown as the model answer on the review screens, so write that one
+   with correct punctuation.
+
+   Checking also ignores CAPITAL letters and extra spaces.
+
+   SCORING: one question = one score unit.
+     Green  = 0 competition points (but must reach 10/10 to get the clue)
+     Yellow = +1 point per fully correct question
+     Red    = +2 points per fully correct question
+   ================================================================== */
+
+function ok(){
+  const out = [];
+  for (const s of arguments) out.push(s, s.replace(/[.?!]+$/, ""));
+  return out.filter((v, i) => out.indexOf(v) === i);
+}
+
+const stationData = {
+
+  /* ---- THE STATION CLUE (shown after Green 10/10) ---- */
+  clue: "THE",
+
+  /* ---- 🟢 GREEN — 10 questions — drag & drop — mandatory, 0 points ---- */
+  green: [
+    { question: "___",
+      chunks: ["the police", "several students", "officers", "interviewed", "in the school office"],
+      answers: ok("The police officers interviewed several students in the school office.",
+                  "In the school office, the police officers interviewed several students.") },
+
+    { question: "___",
+      chunks: ["Morten", "all", "the next lesson", "the classroom computers", "checked", "before"],
+      answers: ok("Morten checked all the classroom computers before the next lesson.",
+                  "Before the next lesson, Morten checked all the classroom computers.") },
+
+    { question: "___",
+      chunks: ["explained", "the first", "language challenge", "to the students", "Bohdana"],
+      answers: ok("Bohdana explained the first language challenge to the students.") },
+
+    { question: "___",
+      chunks: ["several", "German task cards", "Rico", "placed", "on the tables"],
+      answers: ok("Rico placed several German task cards on the tables.") },
+
+    { question: "___",
+      chunks: ["Eva", "the game", "the teams", "gave", "their instructions", "before"],
+      answers: ok("Eva gave the teams their instructions before the game.",
+                  "Before the game, Eva gave the teams their instructions.") },
+
+    { question: "___",
+      chunks: ["another", "suspicious", "discovered", "in the computer room", "one of the students", "message"],
+      answers: ok("One of the students discovered another suspicious message in the computer room.",
+                  "In the computer room, one of the students discovered another suspicious message.") },
+
+    { question: "___",
+      chunks: ["mysterious", "USB stick", "took", "for further investigation", "the", "the police"],
+      answers: ok("The police took the mysterious USB stick for further investigation.") },
+
+    { question: "___",
+      chunks: ["a backup copy", "deleted files", "Morten", "found", "on another server", "of some"],
+      answers: ok("Morten found a backup copy of some deleted files on another server.") },
+
+    { question: "___",
+      chunks: ["the hacker", "inside", "several", "hidden clues", "placed", "the language challenges"],
+      answers: ok("The hacker placed several hidden clues inside the language challenges.") },
+
+    { question: "___",
+      chunks: ["Tommy", "the strange message", "to the police", "showed", "after the first lesson"],
+      answers: ok("Tommy showed the strange message to the police after the first lesson.",
+                  "After the first lesson, Tommy showed the strange message to the police.") }
+  ],
+
+  /* ---- 🟡 YELLOW — drag & drop — +1 point each ---- */
+  yellow: [
+    { question: "Build the sentence in the correct order: ___",
+      chunks: ["before opening them", "carefully", "Morten", "always", "checks", "unknown USB sticks"],
+      answers: ok("Morten always checks unknown USB sticks carefully before opening them.",
+                  "Morten always carefully checks unknown USB sticks before opening them."), points: 1 },
+
+    { question: "Build the sentence in the correct order: ___",
+      chunks: ["yet", "not", "the students", "have", "received", "the final clue"],
+      answers: ok("The students have not received the final clue yet.",
+                  "The students haven't received the final clue yet."), points: 1 },
+
+    { question: "Build the sentence in the correct order: ___",
+      chunks: ["already", "the police", "have", "interviewed", "Tommy and Stina"],
+      answers: ok("The police have already interviewed Tommy and Stina."), points: 1 },
+
+    { question: "Build the question in the correct order: ___",
+      chunks: ["in German", "why", "the hacker", "create", "did", "some of the challenges", "?"],
+      answers: ok("Why did the hacker create some of the challenges in German?"), points: 1 },
+
+    { question: "Build the question in the correct order: ___",
+      chunks: ["files", "where", "Morten", "stored", "has", "the backup", "?"],
+      answers: ok("Where has Morten stored the backup files?"), points: 1 }
+  ],
+
+  /* ---- 🔴 RED — typed by hand (no chunks) — +2 points each ---- */
+  red: [
+    { question: "Put the words in the correct order:\ndecided / a backup of the files / Tommy / not to close the school / because / had found / Morten ___",
+      answers: ok("Tommy decided not to close the school because Morten had found a backup of the files."), points: 2 },
+
+    { question: "Put the words in the correct order:\nEva, Bohdana and Rico / while / continued / the police officers / questioning the staff / were preparing the stations ___",
+      answers: ok("The police officers continued questioning the staff while Eva, Bohdana and Rico were preparing the stations.",
+                  "While Eva, Bohdana and Rico were preparing the stations, the police officers continued questioning the staff."),
+      also: "While Eva, Bohdana and Rico were preparing the stations, the police officers continued questioning the staff.",
+      points: 2 },
+
+    { question: "Put the words in the correct order:\nto the school network / Morten / the USB stick / looked harmless / although / refused / to connect it ___",
+      answers: ok("Although the USB stick looked harmless, Morten refused to connect it to the school network.",
+                  "Morten refused to connect it to the school network although the USB stick looked harmless."), points: 2 },
+
+    { question: "Put the words in the correct order:\nthey / were connected / after / had completed several challenges / began / to understand / the students / how the clues ___",
+      answers: ok("After the students had completed several challenges, they began to understand how the clues were connected.",
+                  "The students began to understand how the clues were connected after they had completed several challenges."), points: 2 },
+
+    { question: "Put the words in the correct order:\nthe teams / they / will be able / to discover / collect all the clues / where the final message is hidden / if ___",
+      answers: ok("If the teams collect all the clues, they will be able to discover where the final message is hidden.",
+                  "The teams will be able to discover where the final message is hidden if they collect all the clues."), points: 2 }
+  ]
+};
+
+/* ---- Other settings a teacher might want to change ---- */
+const TOTAL_TEAMS   = 10;                              // how many teams play this station
+const STORAGE_KEY   = "sentenceLabStation3Results_v1"; // must be unique per station file
+const RESULTS_TITLE = "# Station 3 — The Sentence Lab Results";
+
+/* ==================================================================
+   ██  GAME ENGINE — you do not need to edit below this line  ██
+   ================================================================== */
+
+/* ==================================================================
+   DRAG-AND-DROP WORD TILES  (Green + Yellow only)
+   ------------------------------------------------------------------
+   Any question that has a "chunks" array gets a word bank + an
+   assembly line above its answer box. Dragging or clicking a tile
+   writes the assembled sentence into that same answer box, so the
+   original checking / locking / scoring engine is untouched — the
+   box can still be typed in directly if a team prefers.
+   Red questions have no "chunks", so they stay typed.
+   ================================================================== */
+let TILES = {};
+
+function joinChunks(list){
+  return list.join(" ").replace(/\s+([?!.,;:])/g, "$1").replace(/\s+/g, " ").trim();
+}
+
+function wireTiles(){
+  document.querySelectorAll(".tilewrap").forEach(w => { if (!w.dataset.ready) buildTiles(w); });
+}
+
+function buildTiles(wrap){
+  const tier = wrap.dataset.tier, qi = +wrap.dataset.qi, key = wrap.dataset.input;
+  const q = (stationData[tier] || [])[qi];
+  const input = $(key);
+  if (!q || !q.chunks || !input) return;
+  wrap.dataset.ready = "1";
+
+  if (input.disabled){ wrap.style.display = "none"; return; }   // locked / correct
+  if (!TILES[key]) TILES[key] = { placed: [], bank: q.chunks.map((c, i) => i) };
+
+  const paint = (writeInput) => {
+    const st = TILES[key];
+    wrap.innerHTML = "";
+
+    const line = document.createElement("div");
+    line.className = "slotline";
+    if (!st.placed.length){
+      const hint = document.createElement("span");
+      hint.className = "slothint";
+      hint.textContent = "Drag or tap the words below to build the sentence here";
+      line.appendChild(hint);
+    }
+    st.placed.forEach(ci => line.appendChild(tileEl(ci, true)));
+
+    const bank = document.createElement("div");
+    bank.className = "bank";
+    st.bank.forEach(ci => bank.appendChild(tileEl(ci, false)));
+
+    const tools = document.createElement("div");
+    tools.className = "tiletools";
+    const hint = document.createElement("span");
+    hint.className = "tilehint";
+    hint.textContent = "Your sentence ↓ (you can also type in it)";
+    tools.appendChild(hint);
+    const reset = document.createElement("button");
+    reset.type = "button"; reset.className = "tilereset"; reset.textContent = "Reset words";
+    reset.addEventListener("click", () => {
+      st.bank = q.chunks.map((c, i) => i); st.placed = []; paint(true);
+    });
+    tools.appendChild(reset);
+
+    wrap.append(line, bank, tools);
+    if (writeInput) input.value = joinChunks(st.placed.map(i => q.chunks[i]));
+  };
+
+  function tileEl(ci, isPlaced){
+    const el = document.createElement("span");
+    el.className = "tile" + (isPlaced ? " placed" : "");
+    el.textContent = q.chunks[ci];
+    el.draggable = true;
+    el.addEventListener("dragstart", e => {
+      el.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", key + "|" + ci + "|" + (isPlaced ? "p" : "b"));
+    });
+    el.addEventListener("dragend", () => el.classList.remove("dragging"));
+    el.addEventListener("click", () => {
+      const st = TILES[key];
+      if (isPlaced){
+        st.placed.splice(st.placed.indexOf(ci), 1);
+        st.bank.push(ci); st.bank.sort((a, b) => a - b);
+      } else {
+        st.bank.splice(st.bank.indexOf(ci), 1);
+        st.placed.push(ci);
+      }
+      paint(true);
+    });
+    return el;
+  }
+
+  function insertIndexAt(line, x, y){
+    const els = [...line.querySelectorAll(".tile")];
+    for (let i = 0; i < els.length; i++){
+      const r = els[i].getBoundingClientRect();
+      if (y < r.bottom && x < r.left + r.width / 2) return i;
+    }
+    return els.length;
+  }
+
+  wrap.addEventListener("dragover", e => {
+    const line = e.target.closest(".slotline"), bank = e.target.closest(".bank");
+    if (line || bank){ e.preventDefault(); (line || bank).classList.add("over"); }
+  });
+  wrap.addEventListener("dragleave", e => {
+    const z = e.target.closest(".slotline, .bank"); if (z) z.classList.remove("over");
+  });
+  wrap.addEventListener("drop", e => {
+    const data = (e.dataTransfer.getData("text/plain") || "").split("|");
+    if (data[0] !== key) return;
+    e.preventDefault();
+    const ci = +data[1], fromPlaced = data[2] === "p";
+    const st = TILES[key];
+    const line = e.target.closest(".slotline"), bank = e.target.closest(".bank");
+    if (line){
+      if (fromPlaced) st.placed.splice(st.placed.indexOf(ci), 1);
+      else st.bank.splice(st.bank.indexOf(ci), 1);
+      st.placed.splice(insertIndexAt(line, e.clientX, e.clientY), 0, ci);
+      paint(true);
+    } else if (bank && fromPlaced){
+      st.placed.splice(st.placed.indexOf(ci), 1);
+      st.bank.push(ci); st.bank.sort((a, b) => a - b);
+      paint(true);
+    }
+  });
+
+  paint(false);   // never overwrite an answer that was typed by hand
+}
+
+/* ---------- small helpers ---------- */
+const $  = (id) => document.getElementById(id);
+const norm = (s) => String(s||"")
+  .replace(/[‘’ʼ´`]/g, "'")   // curly apostrophes -> '
+  .replace(/,/g, " ")         // commas are ignored completely
+  .replace(/\s+/g, " ")
+  .trim()
+  .toLowerCase();
+
+/** Normalise a question's answers into an array of blanks: [[a,b],[c]] */
+function blanksOf(q){
+  const a = q.answers;
+  if (!Array.isArray(a)) return [[String(a)]];
+  return Array.isArray(a[0]) ? a : [a];
+}
+function isAccepted(value, accepted){
+  const v = norm(value);
+  return accepted.some(x => norm(x) === v);
+}
+function two(n){ return String(n).padStart(2,"0"); }
+function clockString(d){ return two(d.getHours())+":"+two(d.getMinutes())+":"+two(d.getSeconds()); }
+function durationString(ms){
+  const s = Math.max(0, Math.round(ms/1000));
+  return two(Math.floor(s/60))+":"+two(s%60);
+}
+function esc(s){ return String(s).replace(/[<>&]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;"}[c])); }
+
+/* ---------- persistent results ---------- */
+function loadResults(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch(e){ return []; }
+}
+function saveResults(list){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
+  catch(e){ console.warn("localStorage unavailable", e); }
+}
+function buildMarkdown(){
+  const list = loadResults();
+  let md = RESULTS_TITLE + "\n\n";
+  md += "_" + list.length + " team(s) recorded. Winner = Yellow + Red points only._\n\n";
+  list.forEach(r => {
+    md += "## " + r.team + "\n";
+    md += "- Green: " + r.greenCorrect + " / " + r.greenTotal + "\n";
+    md += "- Green attempts: " + r.greenAttempts + "\n";
+    md += "- Clue earned: " + (r.clue ? "Yes" : "No") + "\n";
+    md += "- Yellow correct: " + r.yellowCorrect + "\n";
+    md += "- Yellow points: " + r.yellowPoints + "\n";
+    md += "- Red correct: " + r.redCorrect + "\n";
+    md += "- Red points: " + r.redPoints + "\n";
+    md += "- Total score: " + r.total + "\n";
+    md += "- Start time: " + r.start + "\n";
+    md += "- Finish time: " + r.finish + "\n";
+    md += "- Duration: " + r.duration + "\n";
+    md += "\n---\n\n";
+  });
+  const ranked = [...list].sort((a,b) => b.total - a.total);
+  if (ranked.length){
+    md += "## Scoreboard (Yellow + Red)\n\n";
+    md += "| Team | Yellow | Red | Total |\n| --- | ---: | ---: | ---: |\n";
+    ranked.forEach(r => { md += "| " + r.team + " | " + r.yellowPoints + " | " + r.redPoints + " | " + r.total + " |\n"; });
+    const best = ranked[0].total;
+    const winners = ranked.filter(r => r.total === best).map(r => r.team);
+    md += "\n**" + (winners.length > 1 ? "Tied leaders" : "Winner") + ": " + winners.join(", ") + " — " + best + " points**\n";
+  }
+  return md;
+}
+
+/* ---------- results.md file handle (File System Access API) ---------- */
+let fileHandle = null;
+const IDB_NAME = "sentenceLabStation3", IDB_STORE = "handles";
+function idb(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbSet(k,v){ try{ const db=await idb(); await new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,"readwrite");t.objectStore(IDB_STORE).put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error);}); }catch(e){} }
+async function idbGet(k){ try{ const db=await idb(); return await new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,"readonly");const q=t.objectStore(IDB_STORE).get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);}); }catch(e){ return null; } }
+
+const fsSupported = (typeof window.showSaveFilePicker === "function");
+
+async function pickResultsFile(){
+  if (!fsSupported){
+    alert("This browser cannot write files directly.\nUse EXPORT RESULTS.MD instead — it downloads the complete file with every team.");
+    return;
+  }
+  try{
+    fileHandle = await window.showSaveFilePicker({
+      suggestedName: "results.md",
+      types: [{ description: "Markdown", accept: { "text/markdown": [".md"] } }]
+    });
+    await idbSet("resultsFile", fileHandle);
+    await writeResultsFile();
+    updateFileStatus();
+  }catch(e){ /* user cancelled */ }
+}
+async function writeResultsFile(){
+  if (!fileHandle) return false;
+  try{
+    const perm = await fileHandle.queryPermission({ mode:"readwrite" });
+    if (perm !== "granted"){
+      const req = await fileHandle.requestPermission({ mode:"readwrite" });
+      if (req !== "granted") return false;
+    }
+    const w = await fileHandle.createWritable();
+    await w.write(buildMarkdown());
+    await w.close();
+    return true;
+  }catch(e){ console.warn("write failed", e); return false; }
+}
+function downloadResults(){
+  const blob = new Blob([buildMarkdown()], { type:"text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "results.md";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+function updateFileStatus(){
+  const el = $("fileStatus");
+  if (!el) return;
+  if (fileHandle) el.textContent = "results.md is connected — it is rewritten automatically after every team.";
+  else if (fsSupported) el.textContent = "No results file selected yet. Click SELECT RESULTS FILE once at the start of the lesson, or just export at the end.";
+  else el.textContent = "This browser cannot write files directly (that is fine). Use EXPORT RESULTS.MD — the download always contains every team.";
+}
+
+/* ---------- game state ---------- */
+let S = null;
+function freshState(team){
+  return {
+    team,
+    startedAt: Date.now(),
+    startClock: clockString(new Date()),
+    greenAttempts: 0,
+    greenLocked: stationData.green.map(q => blanksOf(q).map(() => false)),
+    greenValues: stationData.green.map(q => blanksOf(q).map(() => "")),
+    greenDone: false,
+    yellowIndex: 0, yellowCorrect: 0, yellowPoints: 0, yellowGiven: [], yellowRight: [],
+    redIndex: 0,    redCorrect: 0,    redPoints: 0,    redGiven: [],    redRight: []
+  };
+}
+
+/* ---------- screens ---------- */
+const SCREENS = ["screen-start","screen-green","screen-clue","screen-yellow","screen-yellow-review","screen-red","screen-red-review","screen-end"];
+function show(id){
+  SCREENS.forEach(s => $(s).classList.toggle("hidden", s !== id));
+  const map = { "screen-green":"g", "screen-clue":"g", "screen-yellow":"y", "screen-yellow-review":"y", "screen-red":"r", "screen-red-review":"r" };
+  ["railG","railY","railR"].forEach(r => $(r).classList.remove("active","done"));
+  const cur = map[id];
+  if (cur === "g"){ $("railG").classList.add("active"); }
+  if (cur === "y"){ $("railG").classList.add("done"); $("railY").classList.add("active"); }
+  if (cur === "r"){ $("railG").classList.add("done"); $("railY").classList.add("done"); $("railR").classList.add("active"); }
+  if (id === "screen-end"){ ["railG","railY","railR"].forEach(r => $(r).classList.add("done")); }
+  $("rail").style.display = (id === "screen-start") ? "none" : "flex";
+  window.scrollTo({ top:0, behavior:"smooth" });
+}
+
+/** Build the sentence HTML, replacing every ___ with an input. */
+function renderQuestion(q, idPrefix, values, locked, meta){
+  const parts = q.question.split("___");
+  let html = "";
+  for (let i = 0; i < parts.length; i++){
+    html += esc(parts[i]);
+    if (i < parts.length - 1){
+      const v = values ? esc(values[i] || "") : "";
+      const isLocked = locked && locked[i];
+      if (meta && q.chunks && i === 0){
+        html += '<div class="tilewrap" data-tier="' + meta.tier + '" data-qi="' + meta.qi + '" data-input="' + idPrefix + "_" + i + '"></div>';
+      }
+      html += '<input type="text" class="blank' + (isLocked ? " ok" : "") + '" autocomplete="off" spellcheck="false" ' +
+              'id="' + idPrefix + "_" + i + '" value="' + v + '"' + (isLocked ? " disabled" : "") + '>';
+    }
+  }
+  return html;
+}
+
+/* ================= GREEN ================= */
+function renderGreen(feedback){
+  const list = $("greenList");
+  list.innerHTML = "";
+  stationData.green.forEach((q, qi) => {
+    const li = document.createElement("li");
+    li.className = "qitem";
+    const state = feedback ? feedback[qi] : null;
+    if (state === true) li.classList.add("ok");
+    if (state === false) li.classList.add("bad");
+    li.innerHTML =
+      '<div class="qnum">' + two(qi+1) + '</div>' +
+      '<div class="qbody"><div class="qtext">' +
+        renderQuestion(q, "g"+qi, S.greenValues[qi], S.greenLocked[qi], { tier:"green", qi:qi }) +
+      '</div><div class="mark ' + (state === true ? "ok" : state === false ? "bad" : "") + '">' +
+        (state === true ? "✓ Correct" : state === false ? "✗ Try again" : "") +
+      '</div></div>';
+    list.appendChild(li);
+  });
+  wireTiles();
+  updateGreenCounter();
+}
+function greenQuestionCorrect(qi){
+  return S.greenLocked[qi].every(Boolean);
+}
+function updateGreenCounter(){
+  const n = stationData.green.filter((q,i) => greenQuestionCorrect(i)).length;
+  $("greenCounter").textContent = CONFIG.green.progressLabel + ": " + n + " / " + stationData.green.length;
+  $("greenBar").style.width = (100 * n / stationData.green.length) + "%";
+  return n;
+}
+function readGreenInputs(){
+  stationData.green.forEach((q, qi) => {
+    blanksOf(q).forEach((acc, bi) => {
+      const el = $("g" + qi + "_" + bi);
+      if (el) S.greenValues[qi][bi] = el.value;
+    });
+  });
+}
+function checkGreen(){
+  readGreenInputs();
+  S.greenAttempts++;
+  const feedback = stationData.green.map((q, qi) => {
+    const bl = blanksOf(q);
+    bl.forEach((acc, bi) => {
+      if (!S.greenLocked[qi][bi] && isAccepted(S.greenValues[qi][bi], acc)) S.greenLocked[qi][bi] = true;
+    });
+    return bl.every((acc, bi) => S.greenLocked[qi][bi]);
+  });
+  renderGreen(feedback);
+  const n = updateGreenCounter();
+  const total = stationData.green.length;
+  const wrong = total - n;
+  if (n === total){
+    S.greenDone = true;
+    $("greenMsg").style.color = "var(--green)";
+    $("greenMsg").textContent = total + " / " + total + " — " + CONFIG.green.progressLabel.toLowerCase() + ".";
+    setTimeout(showClue, 500);
+  } else {
+    $("greenMsg").style.color = "var(--yellow)";
+    $("greenMsg").textContent = n + " / " + total + " correct  —  correct the " + wrong + " remaining event" + (wrong === 1 ? "" : "s") + ". (Attempt " + S.greenAttempts + ")";
+    const firstWrong = document.querySelector("#greenList input.blank:not(:disabled)");
+    if (firstWrong){
+      firstWrong.classList.add("bad");
+      firstWrong.scrollIntoView({ block:"center", behavior:"smooth" });
+      firstWrong.focus();
+      firstWrong.select();
+    }
+  }
+}
+function showClue(){
+  $("clueWord").textContent = stationData.clue;
+  show("screen-clue");
+}
+
+/* ================= YELLOW / RED ================= */
+function renderLevel(level){
+  const isY = level === "yellow";
+  const data = isY ? stationData.yellow : stationData.red;
+  const idx  = isY ? S.yellowIndex : S.redIndex;
+  const q = data[idx];
+  $(isY ? "yellowCounter" : "redCounter").textContent = "Question " + (idx+1) + " / " + data.length;
+  $(isY ? "yellowBar" : "redBar").style.width = (100 * idx / data.length) + "%";
+  $(isY ? "yellowQ" : "redQ").innerHTML = renderQuestion(q, (isY?"y":"r") + idx, null, null, { tier:level, qi:idx });
+  $(isY ? "yellowErr" : "redErr").textContent = "";
+  wireTiles();
+  const first = document.querySelector((isY ? "#yellowQ" : "#redQ") + " input");
+  if (first) first.focus();
+}
+function submitLevel(level){
+  const isY = level === "yellow";
+  const data = isY ? stationData.yellow : stationData.red;
+  const idx  = isY ? S.yellowIndex : S.redIndex;
+  const q = data[idx];
+  const bl = blanksOf(q);
+  const vals = bl.map((acc, bi) => {
+    const el = $((isY?"y":"r") + idx + "_" + bi);
+    return el ? el.value : "";
+  });
+  if (vals.some(v => norm(v) === "")){
+    $(isY ? "yellowErr" : "redErr").textContent = "Fill in every gap before you submit.";
+    return;
+  }
+  const allRight = bl.every((acc, bi) => isAccepted(vals[bi], acc));
+  const pts = q.points != null ? q.points : (isY ? 1 : 2);
+  if (isY){
+    S.yellowGiven[idx] = vals; S.yellowRight[idx] = allRight;
+    if (allRight){ S.yellowCorrect++; S.yellowPoints += pts; }
+    S.yellowIndex++;
+    if (S.yellowIndex < data.length) renderLevel("yellow");
+    else { renderReview("yellow"); show("screen-yellow-review"); }
+  } else {
+    S.redGiven[idx] = vals; S.redRight[idx] = allRight;
+    if (allRight){ S.redCorrect++; S.redPoints += pts; }
+    S.redIndex++;
+    if (S.redIndex < data.length) renderLevel("red");
+    else { renderReview("red"); show("screen-red-review"); }
+  }
+}
+
+/* ---------- answer review (shown AFTER the whole level is submitted) ---------- */
+function renderReview(level){
+  const isY   = level === "yellow";
+  const data  = isY ? stationData.yellow : stationData.red;
+  const given = isY ? S.yellowGiven : S.redGiven;
+  const right = isY ? S.yellowRight : S.redRight;
+  const list  = $(isY ? "yellowReview" : "redReview");
+  const pts   = isY ? S.yellowPoints : S.redPoints;
+  const nOk   = isY ? S.yellowCorrect : S.redCorrect;
+  $(isY ? "yellowScoreBig" : "redScoreBig").textContent =
+    (isY ? "YELLOW SCORE: " : "RED SCORE: ") + pts + " POINTS   (" + nOk + " / " + data.length + " correct)";
+
+  list.innerHTML = "";
+  data.forEach((q, qi) => {
+    const bl = blanksOf(q);
+    const ok = !!right[qi];
+    const mine = given[qi] || [];
+    // sentence with the model answers filled in
+    const parts = q.question.split("___");
+    let sentence = "";
+    for (let i = 0; i < parts.length; i++){
+      sentence += esc(parts[i]);
+      if (i < parts.length - 1) sentence += '<span class="fill good">' + esc(bl[i][0]) + '</span>';
+    }
+    const point = (q.points != null ? q.points : (isY ? 1 : 2));
+    let yours = "";
+    if (ok){
+      yours = '<div class="yours ok">✓ Correct — +' + point + ' point' + (point === 1 ? "" : "s") + '</div>';
+    } else {
+      const shown = bl.map((acc, bi) => (String(mine[bi] || "").trim() || "—")).join("  /  ");
+      yours = '<div class="yours">✗ Your answer: ' + esc(shown) + '  —  0 points</div>';
+    }
+    const alt = q.also ? '<div class="alsook">Also correct: ' + esc(q.also) + '</div>' : "";
+    const li = document.createElement("li");
+    li.className = "qitem " + (ok ? "ok" : "bad");
+    li.innerHTML = '<div class="qnum">' + two(qi+1) + '</div><div class="qbody"><div class="qtext" style="line-height:1.8">' +
+                   sentence + '</div>' + alt + yours + '</div>';
+    list.appendChild(li);
+  });
+}
+
+/* ================= FINISH ================= */
+function finish(){
+  const now = new Date();
+  const greenCorrectCount = stationData.green.filter((q,i) => greenQuestionCorrect(i)).length;
+  const greenComplete = greenCorrectCount === stationData.green.length;
+  const rec = {
+    team: S.team,
+    greenCorrect: greenCorrectCount,
+    greenTotal: stationData.green.length,
+    greenAttempts: S.greenAttempts,
+    clue: greenComplete,
+    yellowCorrect: S.yellowCorrect,
+    yellowPoints: S.yellowPoints,
+    redCorrect: S.redCorrect,
+    redPoints: S.redPoints,
+    total: S.yellowPoints + S.redPoints,
+    start: S.startClock,
+    finish: clockString(now),
+    duration: durationString(now.getTime() - S.startedAt)
+  };
+  const list = loadResults();
+  if (!list.some(r => norm(r.team) === norm(rec.team))){
+    list.push(rec);
+    saveResults(list);
+  }
+  writeResultsFile();
+
+  $("endTeam").textContent = rec.team;
+  const greenMark = greenComplete ? " ✓" : "";
+  const clueRow = greenComplete
+    ? '<b style="color:var(--green)">Unlocked ✓</b>'
+    : '<b style="color:var(--muted)">Not unlocked</b>';
+  $("endRows").innerHTML =
+    '<div class="row"><span>🟢 Green</span><b style="color:var(--green)">' + rec.greenCorrect + ' / ' + rec.greenTotal + greenMark + ' &nbsp;(0 points)</b></div>' +
+    '<div class="row"><span>🔓 Clue</span>' + clueRow + '</div>' +
+    '<div class="row"><span>🟡 Yellow — ' + rec.yellowCorrect + ' / ' + stationData.yellow.length + ' correct</span><b style="color:var(--yellow)">' + rec.yellowPoints + ' points</b></div>' +
+    '<div class="row"><span>🔴 Red — ' + rec.redCorrect + ' / ' + stationData.red.length + ' correct</span><b style="color:var(--red)">' + rec.redPoints + ' points</b></div>' +
+    '<div class="row"><span>Time used</span><b>' + rec.duration + '</b></div>';
+  $("endTotal").textContent = "TOTAL SCORE: " + rec.total + " POINTS";
+  $("finishStationBtn").classList.add("hidden");
+
+  const all = loadResults();
+  $("allDone").innerHTML = (all.length >= TOTAL_TEAMS)
+    ? '<h2 style="color:var(--green);margin-top:22px">' + esc(CONFIG.allTeamsHeadline) + '</h2>'
+    : "";
+
+  show("screen-end");
+}
+
+function gradeCurrentAndRemaining(level){
+  const isY = level === "yellow";
+  const data = isY ? stationData.yellow : stationData.red;
+  const idx  = isY ? S.yellowIndex : S.redIndex;
+  if (idx >= data.length) return;
+  const q = data[idx];
+  const bl = blanksOf(q);
+  const vals = bl.map((acc, bi) => {
+    const el = $((isY?"y":"r") + idx + "_" + bi);
+    return el ? el.value : "";
+  });
+  const allRight = vals.every(v => norm(v) !== "") && bl.every((acc, bi) => isAccepted(vals[bi], acc));
+  const pts = q.points != null ? q.points : (isY ? 1 : 2);
+  if (isY){ S.yellowGiven[idx] = vals; S.yellowRight[idx] = allRight; if (allRight){ S.yellowCorrect++; S.yellowPoints += pts; } S.yellowIndex++; }
+  else    { S.redGiven[idx] = vals; S.redRight[idx] = allRight; if (allRight){ S.redCorrect++; S.redPoints += pts; } S.redIndex++; }
+}
+
+function forceFinishStation(){
+  if (!S) return;
+  const current = SCREENS.find(id => !$(id).classList.contains("hidden"));
+  if (!current || current === "screen-start" || current === "screen-end") return;
+  if (!confirm("Finish the station now? Whatever " + S.team + " has entered will be submitted as final, and anything not yet answered counts as incorrect. This cannot be undone.")) return;
+  if (current === "screen-green"){
+    readGreenInputs();
+    S.greenAttempts++;
+    stationData.green.forEach((q, qi) => {
+      blanksOf(q).forEach((acc, bi) => {
+        if (!S.greenLocked[qi][bi] && isAccepted(S.greenValues[qi][bi], acc)) S.greenLocked[qi][bi] = true;
+      });
+    });
+  } else if (current === "screen-yellow"){
+    gradeCurrentAndRemaining("yellow");
+  } else if (current === "screen-red"){
+    gradeCurrentAndRemaining("red");
+  }
+  finish();
+}
+
+/* ================= START SCREEN ================= */
+function refreshStartScreen(){
+  const list = loadResults();
+  $("teamsList").innerHTML = list.map(r => '<span class="tag">✓ ' + esc(r.team) + '</span>').join("");
+  $("teamBadge").style.display = "none";
+  $("teamInput").value = "";
+  $("startErr").textContent = "";
+}
+function startGame(){
+  const name = $("teamInput").value.trim().replace(/\s+/g," ");
+  if (!name){ $("startErr").textContent = "Team name must not be empty."; return; }
+  if (loadResults().some(r => norm(r.team) === norm(name))){
+    $("startErr").textContent = "This team has already completed the station. Choose a different name or talk to the teacher.";
+    return;
+  }
+  S = freshState(name);
+  TILES = {};
+  $("teamBadge").textContent = "TEAM: " + name;
+  $("teamBadge").style.display = "inline-block";
+  $("finishStationBtn").classList.remove("hidden");
+  $("greenMsg").textContent = "";
+  renderGreen(null);
+  show("screen-green");
+  const f = document.querySelector("#greenList input");
+  if (f) f.focus();
+}
+function nextTeam(){
+  S = null;
+  TILES = {};
+  $("greenList").innerHTML = "";
+  $("greenMsg").textContent = "";
+  $("yellowQ").innerHTML = ""; $("redQ").innerHTML = "";
+  $("yellowReview").innerHTML = ""; $("redReview").innerHTML = "";
+  $("yellowScoreBig").textContent = ""; $("redScoreBig").textContent = "";
+  $("endRows").innerHTML = ""; $("endTotal").textContent = ""; $("endTeam").textContent = ""; $("allDone").innerHTML = "";
+  $("clueWord").textContent = "";
+  $("greenBar").style.width = "0"; $("yellowBar").style.width = "0"; $("redBar").style.width = "0";
+  $("finishStationBtn").classList.add("hidden");
+  refreshStartScreen();
+  show("screen-start");
+  $("teamInput").focus();
+}
+
+/* ================= BLACK HOLE BACKGROUND (Gargantua) ================= */
+(function blackhole(){
+  const c = $("matrix"), ctx = c.getContext("2d");
+  let W = 0, H = 0, stars = [];
+  function resize(){
+    W = c.width  = window.innerWidth;
+    H = c.height = window.innerHeight;
+    const n = Math.max(90, Math.round(W * H / 11000));
+    stars = new Array(n).fill(0).map(() => ({
+      x: Math.random() * W, y: Math.random() * H,
+      r: Math.random() * 1.1 + .25, a: Math.random() * .55 + .12, t: Math.random() * 6.28
+    }));
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  function diskRings(R, rot, frontOnly){
+    ctx.save();
+    if (frontOnly){ ctx.beginPath(); ctx.rect(-W, 0, 2 * W, H); ctx.clip(); }
+    for (let i = 0; i < 26; i++){
+      const f  = i / 25;
+      const rx = R * (1.30 + f * 2.05);
+      const ry = rx * 0.115;
+      const a  = (1 - f) * 0.60 + 0.07;
+      const s  = (Math.sin(rot + f * 2.2) + 1) / 2;
+      const g  = ctx.createLinearGradient(-rx, 0, rx, 0);
+      g.addColorStop(0, "rgba(255,138,42," + (a * 0.45).toFixed(3) + ")");
+      g.addColorStop(Math.min(.92, Math.max(.08, s)), "rgba(255,240,206," + a.toFixed(3) + ")");
+      g.addColorStop(1, "rgba(255,150,55," + (a * 0.4).toFixed(3) + ")");
+      ctx.strokeStyle = g;
+      ctx.lineWidth = Math.max(1, R * 0.055);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function frame(time){
+    const rot = time * 0.00035;
+    const cx = W * 0.5, cy = H * 0.46, R = Math.min(W, H) * 0.185;
+
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, W, H);
+
+    // starfield
+    for (const s of stars){
+      const tw = 0.65 + 0.35 * Math.sin(time * 0.0013 + s.t);
+      ctx.fillStyle = "rgba(226,236,248," + (s.a * tw).toFixed(3) + ")";
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283); ctx.fill();
+    }
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // outer bloom
+    const bloom = ctx.createRadialGradient(0, 0, R * 0.8, 0, 0, R * 4.2);
+    bloom.addColorStop(0, "rgba(255,170,80,.22)");
+    bloom.addColorStop(.45, "rgba(255,140,50,.08)");
+    bloom.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = bloom;
+    ctx.beginPath(); ctx.arc(0, 0, R * 4.2, 0, 6.283); ctx.fill();
+
+    // accretion disk (whole ellipse, behind the hole)
+    diskRings(R, rot, false);
+
+    // gravitationally lensed halo arcing over and under the hole
+    for (let i = 0; i < 20; i++){
+      const f = i / 19;
+      const r = R * (1.05 + f * 0.55);
+      const a = (1 - f) * 0.42 + 0.03;
+      const s = (Math.sin(rot * 1.6 + f * 3) + 1) / 2;
+      const g = ctx.createLinearGradient(-r, 0, r, 0);
+      g.addColorStop(0, "rgba(255,150,55," + (a * .5).toFixed(3) + ")");
+      g.addColorStop(Math.min(.92, Math.max(.08, s)), "rgba(255,235,200," + a.toFixed(3) + ")");
+      g.addColorStop(1, "rgba(255,150,55," + (a * .5).toFixed(3) + ")");
+      ctx.strokeStyle = g;
+      ctx.lineWidth = Math.max(1, R * 0.045);
+      ctx.beginPath(); ctx.ellipse(0, 0, r, r * 0.97, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // the event horizon: pure black
+    ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, 6.283); ctx.fill();
+
+    // photon ring
+    ctx.strokeStyle = "rgba(255,228,180,.55)";
+    ctx.lineWidth = Math.max(1, R * 0.018);
+    ctx.beginPath(); ctx.arc(0, 0, R * 1.012, 0, 6.283); ctx.stroke();
+
+    // the part of the disk that passes in front of the hole
+    diskRings(R, rot, true);
+
+    ctx.restore();
+  }
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+    frame(0);
+    window.addEventListener("resize", () => frame(0));
+  } else {
+    (function loop(t){ frame(t || 0); requestAnimationFrame(loop); })(0);
+  }
+})();
+
+/* ================= WIRING ================= */
+$("startBtn").addEventListener("click", startGame);
+$("teamInput").addEventListener("keydown", e => { if (e.key === "Enter") startGame(); });
+$("greenCheck").addEventListener("click", checkGreen);
+$("greenList").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") checkGreen(); });
+$("toYellow").addEventListener("click", () => { show("screen-yellow"); renderLevel("yellow"); });
+$("yellowSubmit").addEventListener("click", () => submitLevel("yellow"));
+$("redSubmit").addEventListener("click", () => submitLevel("red"));
+$("yellowQ").addEventListener("keydown", e => { if (e.key === "Enter") submitLevel("yellow"); });
+$("redQ").addEventListener("keydown", e => { if (e.key === "Enter") submitLevel("red"); });
+$("toRed").addEventListener("click", () => { show("screen-red"); renderLevel("red"); });
+$("toEnd").addEventListener("click", finish);
+$("nextTeam").addEventListener("click", nextTeam);
+$("finishStationBtn").addEventListener("click", forceFinishStation);
+$("endExport").addEventListener("click", async () => { const ok = await writeResultsFile(); if (!ok) downloadResults(); });
+
+/* ---------- apply CONFIG text/labels to the page (runs once, before boot) ---------- */
+function applyConfig(){
+  document.title = CONFIG.gameName + " — " + CONFIG.stationLabel;
+  $("brandName").textContent = CONFIG.gameName;
+  $("brandStation").textContent = CONFIG.stationLabel;
+  $("railGLabel").textContent = CONFIG.green.railLabel;
+  $("railYLabel").textContent = CONFIG.yellow.railLabel;
+  $("railRLabel").textContent = CONFIG.red.railLabel;
+  $("startTitle").textContent = CONFIG.gameName;
+  $("startSubtitle").textContent = CONFIG.subtitle;
+  $("introText").innerHTML = CONFIG.introHTML;
+  $("startBtn").textContent = CONFIG.startButtonLabel;
+  $("greenTitle").textContent = CONFIG.green.panelTitle;
+  $("greenSubheading").textContent = CONFIG.green.subheading;
+  $("greenInstructions").innerHTML = CONFIG.green.instructionsHTML;
+  $("greenCompleteHeadline").textContent = CONFIG.green.completeHeadline;
+  $("yellowTitle").textContent = CONFIG.yellow.panelTitle;
+  $("yellowReviewTopic").textContent = CONFIG.yellow.reviewTopic;
+  $("redTitle").textContent = CONFIG.red.panelTitle;
+  $("redReviewTopic").textContent = CONFIG.red.reviewTopic;
+  $("missionCompleteHeadline").textContent = CONFIG.missionCompleteHeadline;
+  $("endStationLabel").textContent = CONFIG.stationLabel;
+}
+
+/* boot */
+(async function boot(){
+  applyConfig();
+  const h = await idbGet("resultsFile");
+  if (h) fileHandle = h;
+  updateFileStatus();
+  refreshStartScreen();
+  show("screen-start");
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title id="pageTitle">Grammar Station</title>
+<style>
+/* ============================================================
+   GRAMMAR ESCAPE-ROOM STATION — Station 8 "Die Verdächtigen-Akte"
+   Visual skin: 2001: A SPACE ODYSSEY (Discovery One console).
+   CSS-only reskin of the Station 1 engine. Every class and id is
+   unchanged — only colours, shapes, type and the background canvas
+   differ. Tier colours stay clearly green / yellow / red so students
+   can still navigate the station by colour.
+
+   Kubrick rules applied here: pure black void, hairline white rules,
+   hard right angles (no rounded corners, no chamfers), flat saturated
+   colour blocks with black text, wide-tracked geometric caps, and one
+   glowing red circle.
+   ============================================================ */
+
+:root{
+  --bg:#000000;
+  --bg2:#000000;
+  --panel:#000000;
+  --panel-2:#050505;
+  --line:rgba(255,255,255,.34);          /* hairline rule */
+  --line-soft:rgba(255,255,255,.20);
+  --text:#f0f1f2;
+  --muted:#8b9199;
+  --green:#00cf68;                       /* flat readout green */
+  --green-dim:#0a5c31;
+  --yellow:#ffb000;                      /* flat readout amber */
+  --red:#ff1e1e;                         /* HAL 9000 red */
+  --cyan:#2f7dff;                        /* Discovery display blue */
+  --accent:#ffffff;
+  /* Futura / Eurostile stand-ins that exist on school Macs and PCs.
+     No web fonts — this file has to open with no internet. */
+  --display:Futura,"Futura PT","Century Gothic","Avenir Next","URW Gothic","Trebuchet MS",system-ui,sans-serif;
+  --mono:ui-monospace,"SFMono-Regular","JetBrains Mono","Cascadia Mono",Consolas,"Liberation Mono",monospace;
+  --sans:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,sans-serif;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  /* the alignment shot: a sun cresting a black sphere, top centre */
+  background:
+    radial-gradient(closest-side at 50% -20%, rgba(255,255,255,.17), rgba(255,255,255,.05) 55%, transparent 76%),
+    #000;
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:19px;
+  line-height:1.55;
+  min-height:100%;
+}
+/* starfield canvas (id kept from the shared engine) */
+#matrix{position:fixed;inset:0;z-index:0;opacity:1;pointer-events:none}
+.grid-overlay{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:80px 80px;
+  mask-image:radial-gradient(circle at 50% 24%,#000 0%,transparent 74%);
+  -webkit-mask-image:radial-gradient(circle at 50% 24%,#000 0%,transparent 74%);
+}
+/* 2001's displays were rear-projected film, not CRTs — no scanlines. */
+.scanlines{display:none}
+.wrap{position:relative;z-index:3;max-width:1020px;margin:0 auto;padding:16px 20px 80px}
+
+/* ---------- mission readout strip ---------- */
+.relaystrip{
+  font-family:var(--display);font-size:11px;letter-spacing:.34em;text-transform:uppercase;
+  color:var(--muted);
+  border-bottom:1px solid var(--line-soft);
+  padding:8px 2px;margin-bottom:16px;
+  display:flex;flex-wrap:wrap;gap:6px 26px;align-items:center;
+}
+.relaystrip .live{color:var(--red)}
+.relaystrip .live::before{
+  content:"";display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--red);box-shadow:0 0 10px rgba(255,30,30,.9);margin-right:9px;vertical-align:middle;
+  animation:pulse 3.2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ---------- console panels: black plate, hairline rule, colour header bar ---------- */
+.panel,header.topbar{
+  position:relative;background:var(--panel);
+  border:1px solid var(--line-soft);border-radius:0;
+}
+.panel::before,header.topbar::before{
+  content:"";position:absolute;left:-1px;right:-1px;top:-1px;height:5px;
+  background:var(--accent);
+}
+header.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:14px 18px;margin-bottom:16px;
+}
+header.topbar::before{background:#ffffff}
+.panel{
+  padding:30px 28px 32px;margin-bottom:18px;
+}
+.panel.green{--accent:var(--green)}
+.panel.yellow{--accent:var(--yellow)}
+.panel.red{--accent:var(--red)}
+
+/* ---------- HAL 9000 ---------- */
+.brandwrap{display:flex;align-items:center;gap:16px;min-width:0}
+.haleye{
+  flex:none;width:34px;height:34px;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,
+    #fff6cf 0 11%, #ffdc6a 11% 15%, #ff2a17 16% 52%, #8d0a02 53% 76%, #200302 77% 100%);
+  box-shadow:0 0 20px rgba(255,42,23,.72), inset 0 0 9px rgba(0,0,0,.75);
+  animation:halbreathe 5s ease-in-out infinite;
+}
+@keyframes halbreathe{0%,100%{box-shadow:0 0 20px rgba(255,42,23,.72), inset 0 0 9px rgba(0,0,0,.75)}
+                      50%{box-shadow:0 0 30px rgba(255,42,23,.95), inset 0 0 9px rgba(0,0,0,.75)}}
+
+.brand{font-family:var(--display);letter-spacing:.22em;font-size:14px;color:#fff;text-transform:uppercase}
+.brand small{display:block;color:var(--muted);letter-spacing:.28em;font-size:10.5px;margin-top:3px}
+.topright{display:flex;align-items:center;gap:12px}
+#teamBadge{
+  font-family:var(--display);font-size:12px;letter-spacing:.20em;text-transform:uppercase;
+  color:#000;background:#fff;border:none;border-radius:0;padding:7px 14px;display:none;font-weight:700;
+}
+.finish-btn{
+  font-family:var(--display);font-size:11px;letter-spacing:.20em;text-transform:uppercase;font-weight:700;
+  background:transparent;color:var(--red);border:1px solid var(--red);
+  border-radius:0;padding:8px 14px;cursor:pointer;transition:.15s;
+}
+.finish-btn:hover{background:var(--red);color:#000}
+
+/* ---------- progress rail: three console readouts ---------- */
+.rail{display:flex;align-items:stretch;gap:12px;margin-bottom:18px}
+.rail .step{
+  flex:1;border:1px solid var(--line-soft);border-radius:0;background:#000;
+  padding:0 0 10px;font-family:var(--display);font-size:12px;letter-spacing:.20em;
+  text-transform:uppercase;color:var(--muted);
+  display:flex;flex-direction:column;gap:9px;transition:.2s;
+}
+.rail .dot{display:block;width:100%;height:5px;background:#2a2d31;flex:none}
+.rail .step > span:last-child{padding:0 14px}
+.rail .step.g.active{color:var(--green);border-color:var(--green)}
+.rail .step.g.active .dot{background:var(--green)}
+.rail .step.y.active{color:var(--yellow);border-color:var(--yellow)}
+.rail .step.y.active .dot{background:var(--yellow)}
+.rail .step.r.active{color:var(--red);border-color:var(--red)}
+.rail .step.r.active .dot{background:var(--red)}
+.rail .step.done{color:#c9ced4;border-color:var(--line-soft)}
+.rail .step.done .dot{background:var(--green-dim)}
+
+/* ---------- type ---------- */
+h1{
+  font-family:var(--display);font-weight:700;font-size:clamp(26px,4.4vw,44px);letter-spacing:.22em;
+  margin:.14em 0 .16em;color:#fff;text-transform:uppercase;
+}
+h2{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.24em;text-transform:uppercase;margin:0 0 8px}
+h3{font-family:var(--display);font-size:12.5px;letter-spacing:.28em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.sub{font-family:var(--display);letter-spacing:.30em;color:#fff;text-transform:uppercase;font-size:12px}
+.intro{
+  border:none;border-left:5px solid #fff;
+  background:rgba(255,255,255,.045);
+  padding:16px 20px;margin:24px 0;font-size:19px;
+}
+.intro i{color:var(--muted);font-size:16.5px}
+.muted{color:var(--muted)}
+.center{text-align:center}
+
+/* ---------- controls ---------- */
+label.fieldlabel{display:block;font-family:var(--display);letter-spacing:.24em;text-transform:uppercase;font-size:12px;color:var(--muted);margin-bottom:9px}
+input[type=text]{
+  width:100%;font-family:var(--mono);font-size:22px;color:#fff;
+  background:#000;border:1px solid var(--line);border-radius:0;
+  padding:14px 16px;outline:none;transition:.12s;
+}
+input[type=text]:focus{border-color:#fff;background:rgba(255,255,255,.05)}
+input.blank{
+  width:auto;min-width:210px;display:inline-block;font-size:20px;padding:8px 12px;
+  vertical-align:middle;margin:0 4px;
+}
+input.blank.ok{border-color:var(--green);color:var(--green);background:rgba(0,207,104,.10)}
+input.blank.bad{border-color:var(--red);background:rgba(255,30,30,.08)}
+input:disabled{opacity:1;cursor:not-allowed}
+button{
+  font-family:var(--display);letter-spacing:.24em;text-transform:uppercase;font-size:14px;font-weight:700;
+  color:#000;background:var(--green);
+  border:none;border-radius:0;padding:17px 30px;cursor:pointer;transition:.14s;
+}
+button:hover{filter:brightness(1.15)}
+button:active{filter:brightness(.9)}
+button.ghost{background:transparent;color:#fff;border:1px solid var(--line);}
+button.ghost:hover{background:#fff;color:#000}
+button.yellow{background:var(--yellow);color:#000}
+button.red{background:var(--red);color:#000}
+button.danger{background:var(--red);color:#000}
+.btnrow{display:flex;gap:14px;flex-wrap:wrap;margin-top:24px}
+.err{color:var(--red);font-family:var(--mono);font-size:15px;margin-top:12px;min-height:22px}
+
+/* ---------- questions ---------- */
+.qlist{list-style:none;padding:0;margin:16px 0 0}
+.qitem{
+  border:1px solid var(--line-soft);border-left:5px solid #3a3e43;border-radius:0;
+  background:rgba(255,255,255,.022);
+  padding:16px 18px;margin-bottom:12px;display:flex;gap:16px;align-items:flex-start;
+}
+.qitem.ok{border-color:rgba(0,207,104,.4);border-left-color:var(--green);background:rgba(0,207,104,.05)}
+.qitem.bad{border-color:rgba(255,30,30,.4);border-left-color:var(--red);background:rgba(255,30,30,.04)}
+.qnum{font-family:var(--display);font-size:13px;color:var(--muted);min-width:34px;padding-top:14px;letter-spacing:.14em}
+.qbody{flex:1}
+.qtext{font-size:20px;line-height:2.15}
+.mark{font-family:var(--display);font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;margin-top:10px;min-height:18px}
+.mark.ok{color:var(--green)}
+.mark.bad{color:var(--red)}
+.counter{font-family:var(--display);letter-spacing:.24em;text-transform:uppercase;color:var(--muted);font-size:12.5px}
+.bigscore{font-family:var(--display);font-weight:700;font-size:clamp(26px,5.4vw,42px);letter-spacing:.14em;margin:8px 0}
+.bar{height:6px;border-radius:0;background:rgba(255,255,255,.10);overflow:hidden;margin:16px 0 8px}
+.bar > i{display:block;height:100%;width:0;background:var(--green);transition:width .45s ease}
+.bar.y > i{background:var(--yellow)}
+.bar.r > i{background:var(--red)}
+
+/* ---------- aside panels: word bank + crew dossiers ---------- */
+.aside{
+  border:1px solid var(--line-soft);border-radius:0;background:rgba(255,255,255,.028);
+  padding:18px;margin:20px 0 6px;
+}
+.aside h4{
+  font-family:var(--display);font-size:11.5px;letter-spacing:.30em;text-transform:uppercase;
+  color:#fff;margin:0 0 14px;font-weight:700;
+  padding-bottom:9px;border-bottom:1px solid var(--line-soft);
+}
+.wordbank{display:flex;flex-wrap:wrap;gap:10px}
+.wordbank span{
+  font-family:var(--mono);font-size:17px;color:#fff;
+  border:1px solid var(--line);background:#000;
+  padding:7px 15px;border-radius:0;letter-spacing:.04em;
+}
+.dossiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(188px,1fr));gap:12px}
+.dossier{
+  border:1px solid var(--line-soft);border-radius:0;background:#000;padding:0 0 13px;
+}
+.dossier b{
+  display:block;font-family:var(--display);font-size:12.5px;letter-spacing:.22em;
+  color:#000;background:var(--cyan);text-transform:uppercase;font-weight:700;
+  padding:8px 12px;margin-bottom:11px;
+}
+.dossier dl{margin:0;padding:0 14px;font-family:var(--mono);font-size:14.5px;line-height:1.8;overflow-wrap:break-word}
+.dossier dt{color:var(--muted);display:inline}
+.dossier dd{display:inline;margin:0;color:#fff}
+.dossier dd::after{content:"";display:block}
+.asidehint{font-size:15px;color:var(--muted);margin:12px 0 0;font-style:italic}
+
+/* ---------- answer review ---------- */
+.fill{font-family:var(--mono);font-weight:700;padding:2px 9px;border-radius:0}
+.fill.good{color:#000;background:var(--green);border:none}
+.yours{font-family:var(--mono);font-size:16px;color:var(--red);margin-top:8px}
+.yours.ok{color:var(--green)}
+.review-note{border-left:5px solid #fff;background:rgba(255,255,255,.045);padding:13px 17px;font-size:17px;margin:18px 0}
+
+/* ---------- clue: the monolith ---------- */
+.clue-card{
+  position:relative;
+  border:1px solid rgba(255,255,255,.55);border-radius:0;background:#000;
+  max-width:560px;margin:34px auto 26px;padding:96px 30px 38px;text-align:center;
+  box-shadow:0 0 0 10px #000, 0 0 90px rgba(255,255,255,.09);
+  animation:pop .6s ease;
+}
+/* a 4:9 slab standing above the word */
+.clue-card::before{
+  content:"";position:absolute;left:50%;top:22px;transform:translateX(-50%);
+  width:26px;height:58px;background:#000;
+  border:1px solid rgba(255,255,255,.75);
+  box-shadow:0 0 26px rgba(255,255,255,.28);
+}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.clue-word{
+  font-family:var(--display);font-weight:700;font-size:clamp(34px,8vw,62px);letter-spacing:.30em;
+  color:#fff;text-indent:.30em;
+}
+.clue-gloss{font-family:var(--display);font-size:14px;letter-spacing:.26em;color:var(--muted);text-transform:uppercase;margin-top:10px}
+
+/* ---------- summary ---------- */
+.rows{margin:20px 0}
+.row{display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line-soft);padding:13px 2px;font-size:19px}
+.row b{font-family:var(--mono)}
+.total{font-family:var(--display);font-weight:700;font-size:clamp(24px,4.6vw,38px);color:#fff;letter-spacing:.20em;margin-top:18px}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:16px;margin-top:12px}
+th,td{border-bottom:1px solid var(--line-soft);padding:10px 8px;text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);text-transform:uppercase;letter-spacing:.18em;font-size:11.5px;font-family:var(--display)}
+tr.win td{color:var(--green)}
+.tags{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+.tag{font-family:var(--mono);font-size:14px;border:1px solid var(--line-soft);border-radius:0;padding:6px 13px;color:#fff;background:rgba(255,255,255,.04)}
+
+/* ---------- footer: HAL ---------- */
+.beltfoot{
+  margin-top:30px;padding-top:16px;border-top:1px solid var(--line-soft);
+  font-family:var(--display);font-size:12px;letter-spacing:.26em;color:var(--red);
+  text-align:center;text-transform:uppercase;
+}
+.beltfoot em{
+  display:block;text-transform:none;letter-spacing:.03em;color:var(--muted);
+  font-family:var(--sans);font-style:italic;font-size:13px;margin-top:8px;
+}
+
+/* ---------- teacher modal (unused by this station, kept from the engine) ---------- */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.9);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.modal.open{display:flex}
+.modal .box{max-width:820px;width:100%;border:1px solid var(--line);border-radius:0;background:#000;padding:26px}
+.hidden{display:none !important}
+.filestatus{font-family:var(--mono);font-size:14px;color:var(--muted);margin-top:10px}
+
+@media (max-width:680px){
+  body{font-size:17px}
+  .rail{flex-direction:column}
+  .rail .step{padding-bottom:12px}
+  input.blank{min-width:150px}
+  .panel{padding:24px 18px 26px}
+  .relaystrip{font-size:9.5px;letter-spacing:.20em;gap:4px 14px}
+  header.topbar{flex-wrap:wrap;gap:10px;padding:12px 14px}
+  .brandwrap{gap:12px}
+  .brand{font-size:12px;letter-spacing:.15em}
+  .brand small{letter-spacing:.20em}
+  .haleye{width:28px;height:28px}
+  #teamBadge{font-size:11px;padding:6px 11px}
+  .finish-btn{font-size:10px;padding:7px 11px}
+  .dossiers{grid-template-columns:1fr}
+  h1{letter-spacing:.16em}
+  .clue-card{padding:82px 20px 30px}
+}
+@media (prefers-reduced-motion:reduce){
+  #matrix{display:none}
+  *{animation:none !important;transition:none !important}
+}
+
+</style>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+<div class="grid-overlay"></div>
+<div class="scanlines"></div>
+
+<div class="wrap">
+  <div class="relaystrip" id="relayStrip"></div>
+
+  <header class="topbar">
+    <div class="brandwrap"><span class="haleye" aria-hidden="true"></span><div class="brand"><span id="brandName">Grammar Station</span><small id="brandStation">Station 00</small></div></div>
+    <div class="topright">
+      <span id="teamBadge"></span>
+      <button class="finish-btn hidden" id="finishStationBtn">Finish the station</button>
+    </div>
+  </header>
+
+  <div class="rail" id="rail">
+    <div class="step g" id="railG"><span class="dot"></span><span id="railGLabel">Green</span></div>
+    <div class="step y" id="railY"><span class="dot"></span><span id="railYLabel">Yellow</span></div>
+    <div class="step r" id="railR"><span class="dot"></span><span id="railRLabel">Red</span></div>
+  </div>
+
+  <!-- ============ START ============ -->
+  <section class="panel" id="screen-start">
+    <div class="center">
+      <h1 id="startTitle">Grammar Station</h1>
+      <div class="sub" id="startSubtitle">Station 00 — Grammar Topic</div>
+    </div>
+    <div class="intro" id="introText">
+      Write two short story lines here.
+    </div>
+    <label class="fieldlabel" for="teamInput" id="teamLabel">Enter your team name</label>
+    <input type="text" id="teamInput" autocomplete="off" spellcheck="false" placeholder="e.g. Grammar Warriors">
+    <div class="err" id="startErr"></div>
+    <div class="btnrow"><button id="startBtn"></button></div>
+    <div style="margin-top:26px">
+      <h3 style="margin-bottom:8px" id="missionLogLabel">Mission log</h3>
+      <div class="tags" id="teamsList"></div>
+    </div>
+  </section>
+
+  <!-- ============ GREEN ============ -->
+  <section class="panel green hidden" id="screen-green">
+    <h2 style="color:var(--green)" id="greenTitle">Green</h2>
+    <h3 id="greenSubheading">Complete the mission</h3>
+    <p class="muted" style="font-size:17px" id="greenInstructions"></p>
+    <div class="aside hidden" id="greenAside"><h4 id="greenAsideTitle"></h4><div id="greenAsideBody"></div></div>
+    <div class="bar"><i id="greenBar"></i></div>
+    <div class="counter" id="greenCounter">0 / 0</div>
+    <ul class="qlist" id="greenList"></ul>
+    <div class="err" id="greenMsg"></div>
+    <div class="btnrow"><button id="greenCheck"></button></div>
+  </section>
+
+  <!-- ============ CLUE ============ -->
+  <section class="panel green hidden" id="screen-clue">
+    <div class="center">
+      <h1 style="font-size:clamp(26px,5vw,40px)" id="greenCompleteHeadline">Green completed</h1>
+      <div class="sub" id="clueSubline"></div>
+      <div class="clue-card">
+        <h3 style="margin-bottom:6px" id="clueLabel"></h3>
+        <div class="clue-word" id="clueWord"></div>
+        <div class="clue-gloss" id="clueGloss"></div>
+        <p style="margin:14px 0 0;font-size:16px;color:var(--red);font-weight:700" id="clueWarn"></p>
+      </div>
+      <p class="muted" style="font-size:17px" id="clueZeroNote"></p>
+      <div class="btnrow" style="justify-content:center"><button class="yellow" id="toYellow"></button></div>
+    </div>
+  </section>
+
+  <!-- ============ YELLOW ============ -->
+  <section class="panel yellow hidden" id="screen-yellow">
+    <h2 style="color:var(--yellow)" id="yellowTitle">Yellow</h2>
+    <h3><span id="yellowCounter"></span> &nbsp;·&nbsp; <span id="yellowPointsNote"></span></h3>
+    <div class="bar y"><i id="yellowBar"></i></div>
+    <p class="muted" style="font-size:16px" id="yellowOnce"></p>
+    <div class="aside hidden" id="yellowAside"><h4 id="yellowAsideTitle"></h4><div id="yellowAsideBody"></div></div>
+    <div id="yellowQ" class="qtext" style="margin:22px 0 6px"></div>
+    <div class="err" id="yellowErr"></div>
+    <div class="btnrow"><button class="yellow" id="yellowSubmit"></button></div>
+  </section>
+
+  <!-- ============ YELLOW REVIEW ============ -->
+  <section class="panel yellow hidden" id="screen-yellow-review">
+    <h2 style="color:var(--yellow)" id="yellowReviewTitle"></h2>
+    <h3 id="yellowReviewTopic">Grammar topic</h3>
+    <div class="center bigscore" style="color:var(--yellow);font-size:clamp(22px,3.4vw,32px)" id="yellowScoreBig"></div>
+    <div class="review-note" id="yellowReviewNote"></div>
+    <ul class="qlist" id="yellowReview"></ul>
+    <div class="btnrow"><button class="red" id="toRed"></button></div>
+  </section>
+
+  <!-- ============ RED ============ -->
+  <section class="panel red hidden" id="screen-red">
+    <h2 style="color:var(--red)" id="redTitle">Red</h2>
+    <h3><span id="redCounter"></span> &nbsp;·&nbsp; <span id="redPointsNote"></span></h3>
+    <div class="bar r"><i id="redBar"></i></div>
+    <p class="muted" style="font-size:16px" id="redOnce"></p>
+    <div class="aside hidden" id="redAside"><h4 id="redAsideTitle"></h4><div id="redAsideBody"></div></div>
+    <div id="redQ" class="qtext" style="margin:22px 0 6px"></div>
+    <div class="err" id="redErr"></div>
+    <div class="btnrow"><button class="red" id="redSubmit"></button></div>
+  </section>
+
+  <!-- ============ RED REVIEW ============ -->
+  <section class="panel red hidden" id="screen-red-review">
+    <h2 style="color:var(--red)" id="redReviewTitle"></h2>
+    <h3 id="redReviewTopic">Grammar topic</h3>
+    <div class="center bigscore" style="color:var(--red);font-size:clamp(22px,3.4vw,32px)" id="redScoreBig"></div>
+    <div class="review-note" id="redReviewNote"></div>
+    <ul class="qlist" id="redReview"></ul>
+    <div class="btnrow"><button id="toEnd"></button></div>
+  </section>
+
+  <!-- ============ END ============ -->
+  <section class="panel hidden" id="screen-end">
+    <div class="center">
+      <div class="sub" style="margin-bottom:4px" id="endStationLabel">Station 00</div>
+      <h1 style="font-size:clamp(24px,4.6vw,38px)" id="missionCompleteHeadline">Station mission completed</h1>
+      <div class="sub" id="endTeam"></div>
+    </div>
+    <div class="rows" id="endRows"></div>
+    <div class="center total" id="endTotal"></div>
+    <div class="center" id="allDone"></div>
+    <div class="btnrow" style="justify-content:center">
+      <button id="nextTeam">Next team →</button>
+      <button class="ghost" id="endExport">Save results.md</button>
+    </div>
+  </section>
+
+  <div class="beltfoot"><span id="footerBelta"></span><em id="footerGloss"></em></div>
+</div>
+
+
+<script>
+/* ==================================================================
+   ██  EDIT YOUR CONTENT HERE — SECTION 1: IDENTITY & LABELS  ██
+   ------------------------------------------------------------------
+   Everything in CONFIG controls the station's name, story framing and
+   on-screen wording. None of it affects scoring or game logic — it is
+   pure text/HTML that gets written into the page when the game boots.
+
+   Student-facing text is German with a short italic English gloss.
+   Score wording (POINTS / TOTAL SCORE / Unlocked) stays English so it
+   matches results.md and the other ten stations.
+   ================================================================== */
+const CONFIG = {
+  // Big title on the start screen and the browser tab / header brand.
+  gameName: "Die Verdächtigen-Akte",
+  // Short station tag shown next to the game name.
+  stationLabel: "Station 08",
+  // One line under the big title.
+  subtitle: "Station 8 — Persönliche Informationen, Familie und Hobbys",
+  // Story framing shown on the start screen. HTML allowed.
+  introHTML:
+    "Der Hacker hat vier Personalakten aus dem Schulnetz kopiert und über einen alten " +
+    "Relaisknoten hochgeladen. Die Akten sind auf <b>Deutsch</b> — und die Datenfelder sind beschädigt.<br>" +
+    "Eine dieser vier Personen war in der Nacht des Angriffs in der Schule.<br><br>" +
+    "<i>The hacker copied four personnel files out of the school network. They are in German and the data " +
+    "fields are damaged. One of these four people was in the school on the night of the attack. " +
+    "Repair the files, take your clue, then find the suspect.</i>",
+
+  // Text in the mission readout strip above the header (last item gets the red HAL dot).
+  relayStrip: ["Mission Jupiter", "Besatzung · 3 im Kälteschlaf", "AE-35 · Ausfall in 72 Std"],
+  relayLive: "HAL 9000 online",
+  // Optional footer line + its German gloss. Leave both empty to hide the footer.
+  footerBelta: "",
+  footerGloss: "",
+
+  green: {
+    railLabel: "Grün — sein · haben · heißen",
+    panelTitle: "Grün — Persönliche Informationen",
+    subheading: "Datenfelder beschädigt — setzt die richtigen Verben ein",
+    instructionsHTML:
+      "Füllt jede Lücke mit einem Wort aus der Liste. Ihr dürft so oft probieren, wie ihr wollt — " +
+      "richtige Antworten werden automatisch gespeichert.<br>" +
+      "<i>Fill every gap with a word from the list. Unlimited attempts; correct answers lock automatically.</i>",
+    // Word bank shown under the instructions.
+    asideTitle: "Wortliste · word list",
+    asideHTML:
+      '<div class="wordbank">' +
+      ["haben","heißen","heißt","heißt","bist","hat","ist","habt","bin","heiße"]
+        .map(w => "<span>" + w + "</span>").join("") +
+      "</div>" +
+      '<p class="asidehint">Jedes Wort wird genau einmal gebraucht. — Every word is used exactly once. ' +
+      "(„ss“ statt „ß“ wird auch akzeptiert.)</p>",
+    // Word used in the live counter and in the 10/10 message.
+    progressLabel: "Repariert",
+    completeHeadline: "Akten wiederhergestellt"
+  },
+
+  yellow: {
+    railLabel: "Gelb — Familie & Hobbys",
+    panelTitle: "Gelb — Familie und Hobbys",
+    reviewTopic: "Familie und Hobbys · +1 Punkt pro richtiger Antwort",
+    asideTitle: "Wortliste · ein Wort bleibt übrig",
+    asideHTML:
+      '<div class="wordbank">' +
+      ["lesen","Vater","Schwester","Mutter","Bruder","schwimmen"]
+        .map(w => "<span>" + w + "</span>").join("") +
+      "</div>" +
+      '<p class="asidehint">Ein Wort wird nicht gebraucht. — One word is extra.</p>'
+  },
+
+  red: {
+    railLabel: "Rot — Wer ist der Verdächtige?",
+    panelTitle: "Rot — Wer ist der Verdächtige?",
+    reviewTopic: "Verdächtigen-Akten A–D · +2 Punkte pro richtiger Antwort",
+    asideTitle: "Verdächtigen-Akten · suspect files",
+    asideHTML:
+      '<div class="dossiers">' +
+      [
+        ["A — Jonas", "14", "Køge",     "ein Bruder",                 "Fußball und Computerspiele",   "Sport"],
+        ["B — Mia",   "15", "Roskilde", "zwei Schwestern",            "Musik und Lesen",              "Englisch"],
+        ["C — Felix", "15", "Køge",     "eine Schwester",             "Schwimmen und Computerspiele", "Mathematik"],
+        ["D — Lena",  "14", "Roskilde", "ein Bruder und eine Schwester", "Fußball und Musik",         "Deutsch"]
+      ].map(p =>
+        '<div class="dossier"><b>' + p[0] + "</b><dl>" +
+        "<dt>Alter:</dt> <dd>"         + p[1] + "</dd>" +
+        "<dt>Wohnort:</dt> <dd>"       + p[2] + "</dd>" +
+        "<dt>Familie:</dt> <dd>"       + p[3] + "</dd>" +
+        "<dt>Hobbys:</dt> <dd>"        + p[4] + "</dd>" +
+        "<dt>Lieblingsfach:</dt> <dd>" + p[5] + "</dd>" +
+        "</dl></div>"
+      ).join("") +
+      "</div>" +
+      '<p class="asidehint">Schreibt nur den Namen. — Write the name only (the letter A–D is also accepted).</p>'
+  },
+
+  missionCompleteHeadline: "Station 8 abgeschlossen",
+  allTeamsHeadline: "Alle Teams haben diese Station gespielt",
+  startButtonLabel: "Akten öffnen",
+
+  /* ---- every other on-screen string, so the station is German throughout ----
+     {n} {total} {wrong} {attempt} {i} {pts} {tier} {p} {a} are filled in by the engine. */
+  ui: {
+    teamLabel:     "Teamname eingeben · enter your team name",
+    teamPlaceholder: "z. B. Discovery",
+    missionLog:    "Missionslog · teams completed",
+    startErrEmpty: "Teamname fehlt — team name must not be empty.",
+    startErrDup:   "Dieses Team hat die Station schon gespielt — already completed. Nehmt einen anderen Namen.",
+
+    greenCheck:     "Antworten prüfen",
+    greenMarkOk:    "✓ Richtig",
+    greenMarkBad:   "✗ Nochmal versuchen",
+    greenDoneMsg:   "{n} / {total} — alle Datenfelder repariert.",
+    greenRemainMsg: "{n} / {total} richtig — korrigiert noch {wrong} Feld(er). (Versuch {attempt})",
+
+    clueLabel:    "Hinweis freigeschaltet · clue unlocked",
+    clueSubline:  "Grün abgeschlossen — 10 / 10",
+    clueGloss:    "dein · deine",
+    clueWarn:     "Schreibt dieses Wort auf! Ihr braucht es am Ende. · Write this clue down.",
+    clueZeroNote: "Grün gibt <b>0 Punkte</b>. Ab jetzt zählen die Punkte. · <i>Points start now.</i>",
+    toYellow:     "Weiter zu Gelb",
+
+    yellowPointsNote: "+1 Punkt pro richtiger Antwort",
+    redPointsNote:    "+2 Punkte pro richtiger Antwort",
+    onceNote:         "Nur ein Versuch. Die erste Antwort zählt. · One attempt only.",
+    submit:           "Antwort abschicken",
+    fillGap:          "Füllt jede Lücke aus, bevor ihr abschickt. · Fill in every gap first.",
+    questionCounter:  "Frage {i} / {n}",
+
+    yellowReviewTitle: "Gelb — richtige Antworten",
+    redReviewTitle:    "Rot — richtige Antworten",
+    reviewNote:        "Lest die richtige Version jedes Satzes. Eure Punkte sind schon gespeichert und ändern sich nicht mehr. · Your score is already saved.",
+    scoreBig:          "{tier} — {pts} POINTS   ({n} / {total} richtig)",
+    reviewOk:          "✓ Richtig — +{p} Punkt{s}",
+    reviewBad:         "✗ Eure Antwort: {a}  —  0 Punkte",
+    toRed:             "Weiter zu Rot",
+    toEnd:             "Endstand ansehen"
+  }
+};
+
+/* ==================================================================
+   ██  EDIT YOUR CONTENT HERE — SECTION 2: QUESTIONS  ██
+   ------------------------------------------------------------------
+   HOW A QUESTION WORKS
+   --------------------
+   "question"  the sentence. Every ___ (three underscores) becomes an
+               input box on screen.
+   "answers"   the accepted answer(s).
+
+     ONE blank  ->  answers: ["bin"]
+     TWO blanks ->  answers: [ ["bin"], ["hat"] ]
+
+   Answer checking ignores CAPITAL letters, extra spaces and the type
+   of apostrophe, so "Bruder" and "bruder" both count. Every ß answer
+   also lists the "ss" spelling, because Danish keyboards have no ß.
+
+   SCORING: one question = one score unit.
+     Green  = 0 competition points (but must reach 10/10 to get the clue)
+     Yellow = +1 point per fully correct question
+     Red    = +2 points per fully correct question
+   ================================================================== */
+
+const stationData = {
+
+  /* ---- THE STATION CLUE (shown after Green 10/10) ---- */
+  clue: "YOUR",
+
+  /* ---- 🟢 GRÜN — 10 questions — mandatory, 0 points ----
+     sein / haben / heißen. Word list: haben heißen heißt heißt bist
+     hat ist habt bin heiße — each used exactly once. */
+  green: [
+    { question: "Ich ___ 14 Jahre alt.",                      answers: ["bin"] },
+    { question: "Wie ___ du?",                                answers: ["heißt","heisst"] },
+    { question: "Meine Schwester ___ Anna.",                  answers: ["heißt","heisst"] },
+    { question: "Wir ___ zwei Brüder.",                       answers: ["haben"] },
+    { question: "Du ___ 15 Jahre alt.",                       answers: ["bist"] },
+    { question: "Er ___ einen Bruder und eine Schwester.",    answers: ["hat"] },
+    { question: "Ich ___ Lukas.",                             answers: ["heiße","heisse"] },
+    { question: "Sie ___ Schülerin in der 8. Klasse.",        answers: ["ist"] },
+    { question: "Ihr ___ eine große Familie.",                answers: ["habt"] },
+    { question: "Wie ___ deine Eltern?",                      answers: ["heißen","heissen"] }
+  ],
+
+  /* ---- 🟡 GELB — Familie und Hobbys — +1 point each ----
+     Word list: lesen Vater Schwester Mutter Bruder schwimmen ("Mutter" is the extra word). */
+  yellow: [
+    { question: "Mein ___ heißt Max. Er ist 12 Jahre alt.",
+      answers: [ ["Bruder"] ], points: 1 },
+    { question: "Meine ___ heißt Anna. Sie ist 16 Jahre alt.",
+      answers: [ ["Schwester"] ], points: 1 },
+    { question: "Mein ___ arbeitet in einer Schule.",
+      answers: [ ["Vater"] ], points: 1 },
+    { question: "Im Sommer gehe ich gern ___.",
+      answers: [ ["schwimmen"] ], points: 1 },
+    { question: "Meine Freundin mag Bücher. Sie liebt ___.",
+      answers: [ ["lesen","das lesen"] ], points: 1 }
+  ],
+
+  /* ---- 🔴 ROT — Wer ist der Verdächtige? — +2 points each ----
+     The four suspect files are on screen the whole time (CONFIG.red.asideHTML).
+     The file letter (A–D) is accepted as well as the name. */
+  red: [
+    { question: "Die Person ist 15 Jahre alt, wohnt in Køge und schwimmt gern. Wer ist das? ___",
+      answers: [ ["Felix","C","Verdächtiger C","Verdaechtiger C"] ], points: 2 },
+    { question: "Die Person hat zwei Schwestern und liest gern. Wer ist das? ___",
+      answers: [ ["Mia","B","Verdächtige B","Verdaechtige B"] ], points: 2 },
+    { question: "Die Person ist 14 Jahre alt, wohnt in Køge und spielt gern Computerspiele. Wer ist das? ___",
+      answers: [ ["Jonas","A","Verdächtiger A","Verdaechtiger A"] ], points: 2 },
+    { question: "Die Person wohnt in Roskilde und hat einen Bruder und eine Schwester. Wer ist das? ___",
+      answers: [ ["Lena","D","Verdächtige D","Verdaechtige D"] ], points: 2 },
+    { question: "Die Person ist 15 Jahre alt und ihr Lieblingsfach ist Englisch. Wer ist das? ___",
+      answers: [ ["Mia","B","Verdächtige B","Verdaechtige B"] ], points: 2 }
+  ]
+};
+
+/* ---- Other settings a teacher might want to change ---- */
+const TOTAL_TEAMS   = 10;                                        // how many teams play this station
+const STORAGE_KEY   = "verdaechtigenAkteStation8Results_v1";     // unique per station file
+const RESULTS_TITLE = "# Station 8 — Die Verdächtigen-Akte Results";
+
+/* ==================================================================
+   ██  GAME ENGINE — you do not need to edit below this line  ██
+   ================================================================== */
+
+/* ---------- small helpers ---------- */
+const $  = (id) => document.getElementById(id);
+const norm = (s) => String(s||"")
+  .replace(/[‘’ʼ´`]/g, "'")   // curly apostrophes -> '
+  .replace(/\s+/g, " ")
+  .trim()
+  .toLowerCase();
+
+/** Normalise a question's answers into an array of blanks: [[a,b],[c]] */
+function blanksOf(q){
+  const a = q.answers;
+  if (!Array.isArray(a)) return [[String(a)]];
+  return Array.isArray(a[0]) ? a : [a];
+}
+function isAccepted(value, accepted){
+  const v = norm(value);
+  return accepted.some(x => norm(x) === v);
+}
+function two(n){ return String(n).padStart(2,"0"); }
+function clockString(d){ return two(d.getHours())+":"+two(d.getMinutes())+":"+two(d.getSeconds()); }
+function durationString(ms){
+  const s = Math.max(0, Math.round(ms/1000));
+  return two(Math.floor(s/60))+":"+two(s%60);
+}
+function esc(s){ return String(s).replace(/[<>&]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;"}[c])); }
+/** Fill {placeholders} in a CONFIG.ui string. */
+function fmt(t, vars){ return String(t).replace(/\{(\w+)\}/g, (m,k) => (k in vars ? String(vars[k]) : m)); }
+
+/* ---------- persistent results ---------- */
+function loadResults(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch(e){ return []; }
+}
+function saveResults(list){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
+  catch(e){ console.warn("localStorage unavailable", e); }
+}
+function buildMarkdown(){
+  const list = loadResults();
+  let md = RESULTS_TITLE + "\n\n";
+  md += "_" + list.length + " team(s) recorded. Winner = Yellow + Red points only._\n\n";
+  list.forEach(r => {
+    md += "## " + r.team + "\n";
+    md += "- Green: " + r.greenCorrect + " / " + r.greenTotal + "\n";
+    md += "- Green attempts: " + r.greenAttempts + "\n";
+    md += "- Clue earned: " + (r.clue ? "Yes" : "No") + "\n";
+    md += "- Yellow correct: " + r.yellowCorrect + "\n";
+    md += "- Yellow points: " + r.yellowPoints + "\n";
+    md += "- Red correct: " + r.redCorrect + "\n";
+    md += "- Red points: " + r.redPoints + "\n";
+    md += "- Total score: " + r.total + "\n";
+    md += "- Start time: " + r.start + "\n";
+    md += "- Finish time: " + r.finish + "\n";
+    md += "- Duration: " + r.duration + "\n";
+    md += "\n---\n\n";
+  });
+  const ranked = [...list].sort((a,b) => b.total - a.total);
+  if (ranked.length){
+    md += "## Scoreboard (Yellow + Red)\n\n";
+    md += "| Team | Yellow | Red | Total |\n| --- | ---: | ---: | ---: |\n";
+    ranked.forEach(r => { md += "| " + r.team + " | " + r.yellowPoints + " | " + r.redPoints + " | " + r.total + " |\n"; });
+    const best = ranked[0].total;
+    const winners = ranked.filter(r => r.total === best).map(r => r.team);
+    md += "\n**" + (winners.length > 1 ? "Tied leaders" : "Winner") + ": " + winners.join(", ") + " — " + best + " points**\n";
+  }
+  return md;
+}
+
+/* ---------- results.md file handle (File System Access API) ---------- */
+let fileHandle = null;
+const IDB_NAME = "verdaechtigenAkteStation8", IDB_STORE = "handles";
+function idb(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbSet(k,v){ try{ const db=await idb(); await new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,"readwrite");t.objectStore(IDB_STORE).put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error);}); }catch(e){} }
+async function idbGet(k){ try{ const db=await idb(); return await new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,"readonly");const q=t.objectStore(IDB_STORE).get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);}); }catch(e){ return null; } }
+
+const fsSupported = (typeof window.showSaveFilePicker === "function");
+
+async function pickResultsFile(){
+  if (!fsSupported){
+    alert("This browser cannot write files directly.\nUse EXPORT RESULTS.MD instead — it downloads the complete file with every team.");
+    return;
+  }
+  try{
+    fileHandle = await window.showSaveFilePicker({
+      suggestedName: "results.md",
+      types: [{ description: "Markdown", accept: { "text/markdown": [".md"] } }]
+    });
+    await idbSet("resultsFile", fileHandle);
+    await writeResultsFile();
+    updateFileStatus();
+  }catch(e){ /* user cancelled */ }
+}
+async function writeResultsFile(){
+  if (!fileHandle) return false;
+  try{
+    const perm = await fileHandle.queryPermission({ mode:"readwrite" });
+    if (perm !== "granted"){
+      const req = await fileHandle.requestPermission({ mode:"readwrite" });
+      if (req !== "granted") return false;
+    }
+    const w = await fileHandle.createWritable();
+    await w.write(buildMarkdown());
+    await w.close();
+    return true;
+  }catch(e){ console.warn("write failed", e); return false; }
+}
+function downloadResults(){
+  const blob = new Blob([buildMarkdown()], { type:"text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "results.md";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+function updateFileStatus(){
+  const el = $("fileStatus");
+  if (!el) return;
+  if (fileHandle) el.textContent = "results.md is connected — it is rewritten automatically after every team.";
+  else if (fsSupported) el.textContent = "No results file selected yet. Click SELECT RESULTS FILE once at the start of the lesson, or just export at the end.";
+  else el.textContent = "This browser cannot write files directly (that is fine). Use EXPORT RESULTS.MD — the download always contains every team.";
+}
+
+/* ---------- game state ---------- */
+let S = null;
+function freshState(team){
+  return {
+    team,
+    startedAt: Date.now(),
+    startClock: clockString(new Date()),
+    greenAttempts: 0,
+    greenLocked: stationData.green.map(q => blanksOf(q).map(() => false)),
+    greenValues: stationData.green.map(q => blanksOf(q).map(() => "")),
+    greenDone: false,
+    yellowIndex: 0, yellowCorrect: 0, yellowPoints: 0, yellowGiven: [], yellowRight: [],
+    redIndex: 0,    redCorrect: 0,    redPoints: 0,    redGiven: [],    redRight: []
+  };
+}
+
+/* ---------- screens ---------- */
+const SCREENS = ["screen-start","screen-green","screen-clue","screen-yellow","screen-yellow-review","screen-red","screen-red-review","screen-end"];
+function show(id){
+  SCREENS.forEach(s => $(s).classList.toggle("hidden", s !== id));
+  const map = { "screen-green":"g", "screen-clue":"g", "screen-yellow":"y", "screen-yellow-review":"y", "screen-red":"r", "screen-red-review":"r" };
+  ["railG","railY","railR"].forEach(r => $(r).classList.remove("active","done"));
+  const cur = map[id];
+  if (cur === "g"){ $("railG").classList.add("active"); }
+  if (cur === "y"){ $("railG").classList.add("done"); $("railY").classList.add("active"); }
+  if (cur === "r"){ $("railG").classList.add("done"); $("railY").classList.add("done"); $("railR").classList.add("active"); }
+  if (id === "screen-end"){ ["railG","railY","railR"].forEach(r => $(r).classList.add("done")); }
+  $("rail").style.display = (id === "screen-start") ? "none" : "flex";
+  window.scrollTo({ top:0, behavior:"smooth" });
+}
+
+/** Build the sentence HTML, replacing every ___ with an input. */
+function renderQuestion(q, idPrefix, values, locked){
+  const parts = q.question.split("___");
+  let html = "";
+  for (let i = 0; i < parts.length; i++){
+    html += esc(parts[i]);
+    if (i < parts.length - 1){
+      const v = values ? esc(values[i] || "") : "";
+      const isLocked = locked && locked[i];
+      html += '<input type="text" class="blank' + (isLocked ? " ok" : "") + '" autocomplete="off" spellcheck="false" ' +
+              'id="' + idPrefix + "_" + i + '" value="' + v + '"' + (isLocked ? " disabled" : "") + '>';
+    }
+  }
+  return html;
+}
+
+/* ================= GREEN ================= */
+function renderGreen(feedback){
+  const list = $("greenList");
+  list.innerHTML = "";
+  stationData.green.forEach((q, qi) => {
+    const li = document.createElement("li");
+    li.className = "qitem";
+    const state = feedback ? feedback[qi] : null;
+    if (state === true) li.classList.add("ok");
+    if (state === false) li.classList.add("bad");
+    li.innerHTML =
+      '<div class="qnum">' + two(qi+1) + '</div>' +
+      '<div class="qbody"><div class="qtext">' +
+        renderQuestion(q, "g"+qi, S.greenValues[qi], S.greenLocked[qi]) +
+      '</div><div class="mark ' + (state === true ? "ok" : state === false ? "bad" : "") + '">' +
+        (state === true ? CONFIG.ui.greenMarkOk : state === false ? CONFIG.ui.greenMarkBad : "") +
+      '</div></div>';
+    list.appendChild(li);
+  });
+  updateGreenCounter();
+}
+function greenQuestionCorrect(qi){
+  return S.greenLocked[qi].every(Boolean);
+}
+function updateGreenCounter(){
+  const n = stationData.green.filter((q,i) => greenQuestionCorrect(i)).length;
+  $("greenCounter").textContent = CONFIG.green.progressLabel + ": " + n + " / " + stationData.green.length;
+  $("greenBar").style.width = (100 * n / stationData.green.length) + "%";
+  return n;
+}
+function readGreenInputs(){
+  stationData.green.forEach((q, qi) => {
+    blanksOf(q).forEach((acc, bi) => {
+      const el = $("g" + qi + "_" + bi);
+      if (el) S.greenValues[qi][bi] = el.value;
+    });
+  });
+}
+function checkGreen(){
+  readGreenInputs();
+  S.greenAttempts++;
+  const feedback = stationData.green.map((q, qi) => {
+    const bl = blanksOf(q);
+    bl.forEach((acc, bi) => {
+      if (!S.greenLocked[qi][bi] && isAccepted(S.greenValues[qi][bi], acc)) S.greenLocked[qi][bi] = true;
+    });
+    return bl.every((acc, bi) => S.greenLocked[qi][bi]);
+  });
+  renderGreen(feedback);
+  const n = updateGreenCounter();
+  const total = stationData.green.length;
+  const wrong = total - n;
+  if (n === total){
+    S.greenDone = true;
+    $("greenMsg").style.color = "var(--green)";
+    $("greenMsg").textContent = fmt(CONFIG.ui.greenDoneMsg, { n: total, total: total });
+    setTimeout(showClue, 500);
+  } else {
+    $("greenMsg").style.color = "var(--yellow)";
+    $("greenMsg").textContent = fmt(CONFIG.ui.greenRemainMsg, { n: n, total: total, wrong: wrong, attempt: S.greenAttempts });
+    const firstWrong = document.querySelector("#greenList input.blank:not(:disabled)");
+    if (firstWrong){
+      firstWrong.classList.add("bad");
+      firstWrong.scrollIntoView({ block:"center", behavior:"smooth" });
+      firstWrong.focus();
+      firstWrong.select();
+    }
+  }
+}
+function showClue(){
+  $("clueWord").textContent = stationData.clue;
+  show("screen-clue");
+}
+
+/* ================= YELLOW / RED ================= */
+function renderLevel(level){
+  const isY = level === "yellow";
+  const data = isY ? stationData.yellow : stationData.red;
+  const idx  = isY ? S.yellowIndex : S.redIndex;
+  const q = data[idx];
+  $(isY ? "yellowCounter" : "redCounter").textContent = fmt(CONFIG.ui.questionCounter, { i: idx+1, n: data.length });
+  $(isY ? "yellowBar" : "redBar").style.width = (100 * idx / data.length) + "%";
+  $(isY ? "yellowQ" : "redQ").innerHTML = renderQuestion(q, (isY?"y":"r") + idx, null, null);
+  $(isY ? "yellowErr" : "redErr").textContent = "";
+  const first = document.querySelector((isY ? "#yellowQ" : "#redQ") + " input");
+  if (first) first.focus();
+}
+function submitLevel(level){
+  const isY = level === "yellow";
+  const data = isY ? stationData.yellow : stationData.red;
+  const idx  = isY ? S.yellowIndex : S.redIndex;
+  const q = data[idx];
+  const bl = blanksOf(q);
+  const vals = bl.map((acc, bi) => {
+    const el = $((isY?"y":"r") + idx + "_" + bi);
+    return el ? el.value : "";
+  });
+  if (vals.some(v => norm(v) === "")){
+    $(isY ? "yellowErr" : "redErr").textContent = CONFIG.ui.fillGap;
+    return;
+  }
+  const allRight = bl.every((acc, bi) => isAccepted(vals[bi], acc));
+  const pts = q.points != null ? q.points : (isY ? 1 : 2);
+  if (isY){
+    S.yellowGiven[idx] = vals; S.yellowRight[idx] = allRight;
+    if (allRight){ S.yellowCorrect++; S.yellowPoints += pts; }
+    S.yellowIndex++;
+    if (S.yellowIndex < data.length) renderLevel("yellow");
+    else { renderReview("yellow"); show("screen-yellow-review"); }
+  } else {
+    S.redGiven[idx] = vals; S.redRight[idx] = allRight;
+    if (allRight){ S.redCorrect++; S.redPoints += pts; }
+    S.redIndex++;
+    if (S.redIndex < data.length) renderLevel("red");
+    else { renderReview("red"); show("screen-red-review"); }
+  }
+}
+
+/* ---------- answer review (shown AFTER the whole level is submitted) ---------- */
+function renderReview(level){
+  const isY   = level === "yellow";
+  const data  = isY ? stationData.yellow : stationData.red;
+  const given = isY ? S.yellowGiven : S.redGiven;
+  const right = isY ? S.yellowRight : S.redRight;
+  const list  = $(isY ? "yellowReview" : "redReview");
+  const pts   = isY ? S.yellowPoints : S.redPoints;
+  const nOk   = isY ? S.yellowCorrect : S.redCorrect;
+  $(isY ? "yellowScoreBig" : "redScoreBig").textContent =
+    fmt(CONFIG.ui.scoreBig, { tier: (isY ? "GELB" : "ROT"), pts: pts, n: nOk, total: data.length });
+
+  list.innerHTML = "";
+  data.forEach((q, qi) => {
+    const bl = blanksOf(q);
+    const ok = !!right[qi];
+    const mine = given[qi] || [];
+    // sentence with the model answers filled in
+    const parts = q.question.split("___");
+    let sentence = "";
+    for (let i = 0; i < parts.length; i++){
+      sentence += esc(parts[i]);
+      if (i < parts.length - 1) sentence += '<span class="fill good">' + esc(bl[i][0]) + '</span>';
+    }
+    const point = (q.points != null ? q.points : (isY ? 1 : 2));
+    let yours = "";
+    if (ok){
+      yours = '<div class="yours ok">' + esc(fmt(CONFIG.ui.reviewOk, { p: point, s: (point === 1 ? "" : "e") })) + '</div>';
+    } else {
+      const shown = bl.map((acc, bi) => (String(mine[bi] || "").trim() || "—")).join("  /  ");
+      yours = '<div class="yours">' + esc(fmt(CONFIG.ui.reviewBad, { a: shown })) + '</div>';
+    }
+    const li = document.createElement("li");
+    li.className = "qitem " + (ok ? "ok" : "bad");
+    li.innerHTML = '<div class="qnum">' + two(qi+1) + '</div><div class="qbody"><div class="qtext" style="line-height:1.8">' +
+                   sentence + '</div>' + yours + '</div>';
+    list.appendChild(li);
+  });
+}
+
+/* ================= FINISH ================= */
+function finish(){
+  const now = new Date();
+  const greenCorrectCount = stationData.green.filter((q,i) => greenQuestionCorrect(i)).length;
+  const greenComplete = greenCorrectCount === stationData.green.length;
+  const rec = {
+    team: S.team,
+    greenCorrect: greenCorrectCount,
+    greenTotal: stationData.green.length,
+    greenAttempts: S.greenAttempts,
+    clue: greenComplete,
+    yellowCorrect: S.yellowCorrect,
+    yellowPoints: S.yellowPoints,
+    redCorrect: S.redCorrect,
+    redPoints: S.redPoints,
+    total: S.yellowPoints + S.redPoints,
+    start: S.startClock,
+    finish: clockString(now),
+    duration: durationString(now.getTime() - S.startedAt)
+  };
+  const list = loadResults();
+  if (!list.some(r => norm(r.team) === norm(rec.team))){
+    list.push(rec);
+    saveResults(list);
+  }
+  writeResultsFile();
+
+  $("endTeam").textContent = rec.team;
+  const greenMark = greenComplete ? " ✓" : "";
+  const clueRow = greenComplete
+    ? '<b style="color:var(--green)">Unlocked ✓</b>'
+    : '<b style="color:var(--muted)">Not unlocked</b>';
+  $("endRows").innerHTML =
+    '<div class="row"><span>🟢 Green</span><b style="color:var(--green)">' + rec.greenCorrect + ' / ' + rec.greenTotal + greenMark + ' &nbsp;(0 points)</b></div>' +
+    '<div class="row"><span>🔓 Clue</span>' + clueRow + '</div>' +
+    '<div class="row"><span>🟡 Yellow — ' + rec.yellowCorrect + ' / ' + stationData.yellow.length + ' correct</span><b style="color:var(--yellow)">' + rec.yellowPoints + ' points</b></div>' +
+    '<div class="row"><span>🔴 Red — ' + rec.redCorrect + ' / ' + stationData.red.length + ' correct</span><b style="color:var(--red)">' + rec.redPoints + ' points</b></div>' +
+    '<div class="row"><span>Time used</span><b>' + rec.duration + '</b></div>';
+  $("endTotal").textContent = "TOTAL SCORE: " + rec.total + " POINTS";
+  $("finishStationBtn").classList.add("hidden");
+
+  const all = loadResults();
+  $("allDone").innerHTML = (all.length >= TOTAL_TEAMS)
+    ? '<h2 style="color:var(--green);margin-top:22px">' + esc(CONFIG.allTeamsHeadline) + '</h2>'
+    : "";
+
+  show("screen-end");
+}
+
+function gradeCurrentAndRemaining(level){
+  const isY = level === "yellow";
+  const data = isY ? stationData.yellow : stationData.red;
+  const idx  = isY ? S.yellowIndex : S.redIndex;
+  if (idx >= data.length) return;
+  const q = data[idx];
+  const bl = blanksOf(q);
+  const vals = bl.map((acc, bi) => {
+    const el = $((isY?"y":"r") + idx + "_" + bi);
+    return el ? el.value : "";
+  });
+  const allRight = vals.every(v => norm(v) !== "") && bl.every((acc, bi) => isAccepted(vals[bi], acc));
+  const pts = q.points != null ? q.points : (isY ? 1 : 2);
+  if (isY){ S.yellowGiven[idx] = vals; S.yellowRight[idx] = allRight; if (allRight){ S.yellowCorrect++; S.yellowPoints += pts; } S.yellowIndex++; }
+  else    { S.redGiven[idx] = vals; S.redRight[idx] = allRight; if (allRight){ S.redCorrect++; S.redPoints += pts; } S.redIndex++; }
+}
+
+function forceFinishStation(){
+  if (!S) return;
+  const current = SCREENS.find(id => !$(id).classList.contains("hidden"));
+  if (!current || current === "screen-start" || current === "screen-end") return;
+  if (!confirm("Finish the station now? Whatever " + S.team + " has entered will be submitted as final, and anything not yet answered counts as incorrect. This cannot be undone.")) return;
+  if (current === "screen-green"){
+    readGreenInputs();
+    S.greenAttempts++;
+    stationData.green.forEach((q, qi) => {
+      blanksOf(q).forEach((acc, bi) => {
+        if (!S.greenLocked[qi][bi] && isAccepted(S.greenValues[qi][bi], acc)) S.greenLocked[qi][bi] = true;
+      });
+    });
+  } else if (current === "screen-yellow"){
+    gradeCurrentAndRemaining("yellow");
+  } else if (current === "screen-red"){
+    gradeCurrentAndRemaining("red");
+  }
+  finish();
+}
+
+/* ================= START SCREEN ================= */
+function refreshStartScreen(){
+  const list = loadResults();
+  $("teamsList").innerHTML = list.map(r => '<span class="tag">✓ ' + esc(r.team) + '</span>').join("");
+  $("teamBadge").style.display = "none";
+  $("teamInput").value = "";
+  $("startErr").textContent = "";
+}
+function startGame(){
+  const name = $("teamInput").value.trim().replace(/\s+/g," ");
+  if (!name){ $("startErr").textContent = CONFIG.ui.startErrEmpty; return; }
+  if (loadResults().some(r => norm(r.team) === norm(name))){
+    $("startErr").textContent = CONFIG.ui.startErrDup;
+    return;
+  }
+  S = freshState(name);
+  $("teamBadge").textContent = "TEAM: " + name;
+  $("teamBadge").style.display = "inline-block";
+  $("finishStationBtn").classList.remove("hidden");
+  $("greenMsg").textContent = "";
+  renderGreen(null);
+  show("screen-green");
+  const f = document.querySelector("#greenList input");
+  if (f) f.focus();
+}
+function nextTeam(){
+  S = null;
+  $("greenList").innerHTML = "";
+  $("greenMsg").textContent = "";
+  $("yellowQ").innerHTML = ""; $("redQ").innerHTML = "";
+  $("yellowReview").innerHTML = ""; $("redReview").innerHTML = "";
+  $("yellowScoreBig").textContent = ""; $("redScoreBig").textContent = "";
+  $("endRows").innerHTML = ""; $("endTotal").textContent = ""; $("endTeam").textContent = ""; $("allDone").innerHTML = "";
+  $("clueWord").textContent = "";
+  $("greenBar").style.width = "0"; $("yellowBar").style.width = "0"; $("redBar").style.width = "0";
+  $("finishStationBtn").classList.add("hidden");
+  refreshStartScreen();
+  show("screen-start");
+  $("teamInput").focus();
+}
+
+/* ================= STARFIELD BACKGROUND (2001 skin) =================
+   Kubrick's space is nearly still: a black void, sparse hard white
+   points, no glow and no rush. Stars drift almost imperceptibly, a few
+   twinkle, and once in a long while a single craft crosses the frame.
+   Purely decorative — disabled entirely under prefers-reduced-motion. */
+(function starfield(){
+  const c = $("matrix"), ctx = c.getContext("2d");
+  let stars = [], craft = null, w = 0, h = 0;
+  function resize(){
+    w = c.width  = window.innerWidth;
+    h = c.height = window.innerHeight;
+    const n = Math.min(260, Math.round(w * h / 14000));
+    stars = new Array(n).fill(0).map(() => ({
+      x: Math.random()*w, y: Math.random()*h,
+      s: Math.random() < .10 ? 1.7 : (Math.random() < .45 ? 1.2 : 0.9),
+      a: 0.30 + Math.random()*0.55,
+      tw: Math.random() < .16,          // only a few twinkle
+      t: Math.random()*Math.PI*2
+    }));
+    craft = null;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    for (const s of stars){
+      s.y += 0.012;                      // barely moving
+      if (s.y > h+2){ s.y = -2; s.x = Math.random()*w; }
+      let a = s.a;
+      if (s.tw){ s.t += 0.013; a *= (0.55 + 0.45*Math.sin(s.t)); }
+      ctx.fillStyle = "rgba(255,255,255," + a.toFixed(3) + ")";
+      ctx.fillRect(s.x, s.y, s.s, s.s);
+    }
+    // a single craft crossing the void, rarely, and slowly
+    if (!craft && Math.random() > 0.9985){
+      const rtl = Math.random() < .5;
+      craft = { x: rtl ? w+20 : -20, y: 80 + Math.random()*Math.max(1,h-160),
+                vx: (rtl ? -1 : 1) * (0.22 + Math.random()*0.14) };
+    }
+    if (craft){
+      craft.x += craft.vx;
+      ctx.fillStyle = "rgba(255,255,255,.85)";
+      ctx.fillRect(craft.x, craft.y, 2.4, 2.4);
+      ctx.fillStyle = "rgba(255,255,255,.16)";
+      ctx.fillRect(craft.x - craft.vx*11, craft.y + .6, 9, 1.2);
+      if (craft.x < -30 || craft.x > w+30) craft = null;
+    }
+    requestAnimationFrame(draw);
+  }
+  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) requestAnimationFrame(draw);
+})();
+
+
+/* ================= WIRING ================= */
+$("startBtn").addEventListener("click", startGame);
+$("teamInput").addEventListener("keydown", e => { if (e.key === "Enter") startGame(); });
+$("greenCheck").addEventListener("click", checkGreen);
+$("greenList").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") checkGreen(); });
+$("toYellow").addEventListener("click", () => { show("screen-yellow"); renderLevel("yellow"); });
+$("yellowSubmit").addEventListener("click", () => submitLevel("yellow"));
+$("redSubmit").addEventListener("click", () => submitLevel("red"));
+$("yellowQ").addEventListener("keydown", e => { if (e.key === "Enter") submitLevel("yellow"); });
+$("redQ").addEventListener("keydown", e => { if (e.key === "Enter") submitLevel("red"); });
+$("toRed").addEventListener("click", () => { show("screen-red"); renderLevel("red"); });
+$("toEnd").addEventListener("click", finish);
+$("nextTeam").addEventListener("click", nextTeam);
+$("finishStationBtn").addEventListener("click", forceFinishStation);
+$("endExport").addEventListener("click", async () => { const ok = await writeResultsFile(); if (!ok) downloadResults(); });
+
+/* ---------- apply CONFIG text/labels to the page (runs once, before boot) ---------- */
+function applyConfig(){
+  document.title = CONFIG.gameName + " — " + CONFIG.stationLabel;
+  $("brandName").textContent = CONFIG.gameName;
+  $("brandStation").textContent = CONFIG.stationLabel;
+  $("railGLabel").textContent = CONFIG.green.railLabel;
+  $("railYLabel").textContent = CONFIG.yellow.railLabel;
+  $("railRLabel").textContent = CONFIG.red.railLabel;
+  $("startTitle").textContent = CONFIG.gameName;
+  $("startSubtitle").textContent = CONFIG.subtitle;
+  $("introText").innerHTML = CONFIG.introHTML;
+  $("startBtn").textContent = CONFIG.startButtonLabel;
+  $("greenTitle").textContent = CONFIG.green.panelTitle;
+  $("greenSubheading").textContent = CONFIG.green.subheading;
+  $("greenInstructions").innerHTML = CONFIG.green.instructionsHTML;
+  $("greenCompleteHeadline").textContent = CONFIG.green.completeHeadline;
+  $("yellowTitle").textContent = CONFIG.yellow.panelTitle;
+  $("yellowReviewTopic").textContent = CONFIG.yellow.reviewTopic;
+  $("redTitle").textContent = CONFIG.red.panelTitle;
+  $("redReviewTopic").textContent = CONFIG.red.reviewTopic;
+  $("missionCompleteHeadline").textContent = CONFIG.missionCompleteHeadline;
+  $("endStationLabel").textContent = CONFIG.stationLabel;
+
+  /* --- Station 8 additions: German UI strings, word bank / dossier asides --- */
+  const U = CONFIG.ui;
+  $("relayStrip").innerHTML =
+    CONFIG.relayStrip.map(t => "<span>" + esc(t) + "</span>").join("") +
+    '<span class="live">' + esc(CONFIG.relayLive) + "</span>";
+  $("footerBelta").textContent = CONFIG.footerBelta || "";
+  $("footerGloss").textContent = CONFIG.footerGloss || "";
+  document.querySelector(".beltfoot")
+    .classList.toggle("hidden", !(CONFIG.footerBelta || CONFIG.footerGloss));
+
+  $("teamLabel").textContent      = U.teamLabel;
+  $("teamInput").placeholder      = U.teamPlaceholder;
+  $("missionLogLabel").textContent= U.missionLog;
+  $("greenCheck").textContent     = U.greenCheck;
+
+  $("clueLabel").textContent      = U.clueLabel;
+  $("clueSubline").textContent    = U.clueSubline;
+  $("clueGloss").textContent      = U.clueGloss;
+  $("clueWarn").textContent       = U.clueWarn;
+  $("clueZeroNote").innerHTML     = U.clueZeroNote;
+  $("toYellow").textContent       = U.toYellow;
+
+  $("yellowPointsNote").textContent = U.yellowPointsNote;
+  $("redPointsNote").textContent    = U.redPointsNote;
+  $("yellowOnce").textContent       = U.onceNote;
+  $("redOnce").textContent          = U.onceNote;
+  $("yellowSubmit").textContent     = U.submit;
+  $("redSubmit").textContent        = U.submit;
+
+  $("yellowReviewTitle").textContent = U.yellowReviewTitle;
+  $("redReviewTitle").textContent    = U.redReviewTitle;
+  $("yellowReviewNote").textContent  = U.reviewNote;
+  $("redReviewNote").textContent     = U.reviewNote;
+  $("toRed").textContent             = U.toRed;
+  $("toEnd").textContent             = U.toEnd;
+
+  ["green","yellow","red"].forEach(k => {
+    const box = $(k + "Aside"); if (!box) return;
+    const c = CONFIG[k];
+    if (c && c.asideHTML){
+      $(k + "AsideTitle").textContent = c.asideTitle || "";
+      $(k + "AsideBody").innerHTML    = c.asideHTML;
+      box.classList.remove("hidden");
+    } else { box.classList.add("hidden"); }
+  });
+}
+
+/* boot */
+(async function boot(){
+  applyConfig();
+  const h = await idbGet("resultsFile");
+  if (h) fileHandle = h;
+  updateFileStatus();
+  refreshStartScreen();
+  show("screen-start");
+})();
+</script>
+</body>
+</html>

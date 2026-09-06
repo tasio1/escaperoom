@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escape Room — Save the School</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="matrix" aria-hidden="true"></canvas>
+<div class="scan" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<div class="wrap">
+
+  <div class="comm">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="comm-text">SYSTEM BREACH · SCHOOL NETWORK · 11 STATIONS · SPRACHPROTOKOLL EN / DE · SELECT A STATION</span>
+  </div>
+
+  <header class="head">
+    <h1 class="title">ESCAPE ROOM <span class="em-dash">—</span> SAVE THE SCHOOL</h1>
+    <p class="subtitle">Mission Control</p>
+    <p class="intro">The school system has been attacked. Complete the stations,
+      collect the clues and uncover the final message.</p>
+  </header>
+
+  <h2 class="sec-title"><span>Briefing</span><span class="rule"></span><span class="sec-meta">Play first</span></h2>
+  <div class="list" id="briefing"></div>
+
+  <h2 class="sec-title"><span>Stations 01 — 10</span><span class="rule"></span><span class="sec-meta">Any order</span></h2>
+  <div class="list" id="list"></div>
+
+  <h2 class="sec-title"><span>Final Writing Mission</span><span class="rule"></span><span class="sec-meta">After the rotation</span></h2>
+  <div class="list" id="final"></div>
+
+  <footer class="foot">
+    <span>Save the School · English &amp; German escape room</span>
+    <span class="dim">Eleven files. One message. Do not lose the card.</span>
+  </footer>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

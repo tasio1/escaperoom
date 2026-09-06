@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAVE THE SCHOOL — Transmission</title>
+<style>
+  :root{
+    --g:#4dff7c;
+    --g-dim:#0f7a2e;
+    --y:#ffe14d;
+    --r:#ff4d4d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#000;overflow:hidden;
+    font-family:"Courier New",ui-monospace,monospace;color:var(--g);cursor:default}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+
+  /* ---------- shared chrome ---------- */
+  .scanlines{position:fixed;inset:0;pointer-events:none;z-index:5;
+    background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.35) 2px 4px);
+    mix-blend-mode:multiply;opacity:.55}
+  .vignette{position:fixed;inset:0;pointer-events:none;z-index:6;
+    background:radial-gradient(ellipse at center,rgba(0,0,0,0) 35%,rgba(0,0,0,.85) 100%)}
+
+  /* ---------- start screen ---------- */
+  #start{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+    background:#000;text-align:center;flex-direction:column;gap:2.2rem;padding:2rem}
+  #start h1{font-size:clamp(1.8rem,5.5vw,4.2rem);letter-spacing:.18em;color:var(--r);
+    text-shadow:0 0 18px rgba(255,60,60,.6)}
+  #start .sub{font-size:clamp(.9rem,1.8vw,1.4rem);color:var(--g);letter-spacing:.14em;line-height:2}
+  #start .warn{color:var(--y);font-size:clamp(.75rem,1.3vw,1rem);letter-spacing:.1em;opacity:.85}
+  button{font-family:inherit;background:transparent;color:var(--g);border:2px solid var(--g);
+    padding:1rem 2.4rem;font-size:clamp(1rem,2.2vw,1.7rem);letter-spacing:.2em;cursor:pointer;
+    text-shadow:0 0 10px rgba(77,255,124,.7);box-shadow:0 0 24px rgba(77,255,124,.25) inset;
+    transition:.15s}
+  button:hover{background:var(--g);color:#000;text-shadow:none;box-shadow:0 0 40px rgba(77,255,124,.6)}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;z-index:10;pointer-events:none;display:none}
+  #topbar{position:absolute;top:0;left:0;right:0;padding:.9rem 1.4rem;display:flex;
+    justify-content:space-between;font-size:clamp(.65rem,1.25vw,1rem);letter-spacing:.16em;
+    color:var(--r);text-shadow:0 0 10px rgba(255,60,60,.5)}
+  #topbar .blink{animation:blink 1s steps(2,end) infinite}
+  @keyframes blink{50%{opacity:.15}}
+  #caption{position:absolute;left:50%;bottom:6vh;transform:translateX(-50%);width:min(92vw,1300px);
+    text-align:center;font-size:clamp(1.1rem,3.1vw,2.6rem);line-height:1.35;letter-spacing:.06em;
+    color:#e9ffe9;text-shadow:0 0 16px rgba(77,255,124,.85),0 0 42px rgba(77,255,124,.35);
+    min-height:2.8em}
+  #caption.de{color:var(--y);text-shadow:0 0 16px rgba(255,225,77,.85),0 0 42px rgba(255,200,0,.35)}
+  #caption .cursor{animation:blink .7s steps(2,end) infinite}
+  #hint{position:absolute;bottom:1rem;left:50%;transform:translateX(-50%);
+    font-size:.72rem;letter-spacing:.15em;color:#2f8a4c}
+
+  /* ---------- end / briefing ---------- */
+  #brief{position:fixed;inset:0;z-index:15;display:none;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.85);padding:3vh 3vw;overflow:auto}
+  #brief .box{border:2px solid var(--g);padding:clamp(1.2rem,3vw,2.6rem);max-width:1100px;width:100%;
+    box-shadow:0 0 60px rgba(77,255,124,.25);background:rgba(0,12,4,.85)}
+  #brief h2{color:var(--r);font-size:clamp(1.4rem,4.2vw,3rem);letter-spacing:.16em;text-align:center;
+    margin-bottom:1.2rem;text-shadow:0 0 20px rgba(255,60,60,.6)}
+  #brief ol{list-style:none;font-size:clamp(.8rem,1.7vw,1.25rem);line-height:1.75;letter-spacing:.04em}
+  #brief li{margin:.15rem 0}
+  #brief li b{color:#eaffea}
+  #brief .green{color:var(--g)}#brief .yellow{color:var(--y)}#brief .red{color:var(--r)}
+  #brief .foot{margin-top:1.1rem;text-align:center;color:#eaffea;
+    font-size:clamp(1rem,2.6vw,2rem);letter-spacing:.18em;text-shadow:0 0 18px rgba(77,255,124,.8)}
+  #brief .btns{margin-top:1.2rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+  #brief button{padding:.7rem 1.6rem;font-size:clamp(.8rem,1.6vw,1.1rem)}
+  .flash{position:fixed;inset:0;z-index:8;pointer-events:none;opacity:0;
+    background:radial-gradient(ellipse at center,rgba(255,60,60,.25) 0%,rgba(255,40,40,.75) 100%)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="flash" id="flash"></div>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+
+<div id="hud">
+  <div id="topbar">
+    <span class="blink">&#9888; SCHOOL NETWORK &mdash; UNAUTHORISED ACCESS</span>
+    <span id="clock">SYSTEM: OFFLINE</span>
+  </div>
+  <div id="caption"></div>
+  <div id="hint">S = SKIP &nbsp;&nbsp; R = REPLAY &nbsp;&nbsp; F = FULLSCREEN &nbsp;&nbsp; M = SILENCE</div>
+</div>
+
+<div id="brief">
+  <div class="box">
+    <h2>&#9635; MISSION BRIEFING &#9635;</h2>
+    <ol>
+      <li><b>01</b> &nbsp;You are now <b>SPECIAL AGENTS</b>. Work in your team. Nobody solves this alone.</li>
+      <li><b>02</b> &nbsp;<span class="green">GREEN</span> is the main mission at every station. Finish it &rarr; you get <b>one secret word</b>.</li>
+      <li><b>03</b> &nbsp;<span class="yellow">YELLOW</span> and <span class="red">RED</span> are extra challenges. They give <b>bonus points</b> for the Language Masters title.</li>
+      <li><b>04</b> &nbsp;<b>10 minutes</b> per station. When the signal sounds, you move on. English <b>and</b> German.</li>
+      <li><b>05</b> &nbsp;<b>11 clues</b> in total. Put them in the right order &rarr; the message shows you where to go.</li>
+      <li><b>06</b> &nbsp;Find the place. Find the message. <b>Shut the hacker out.</b></li>
+    </ol>
+    <div class="foot">THE SCHOOL IS IN YOUR HANDS &mdash; GO!</div>
+    <div class="btns">
+      <button onclick="location.reload()">&#9654; REPLAY TRANSMISSION</button>
+      <button onclick="stopSound(0);document.getElementById('brief').style.display='none'">&#10005; CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<div id="start">
+  <h1>&#9888; INCOMING TRANSMISSION &#9888;</h1>
+  <div class="sub">
+    SOURCE: UNKNOWN<br>
+    TARGET: YOUR SCHOOL<br>
+    PRIORITY: MAXIMUM
+  </div>
+  <button id="go">&#9654; OPEN TRANSMISSION</button>
+  <div class="warn">TURN THE SOUND ON &middot; BEST ON A BIG SCREEN &middot; USE CHROME OR EDGE</div>
+</div>
+
+<script>
+/* =======================================================================
+   SAVE THE SCHOOL — hacker transmission
+   Single file. No internet needed (voice + sound are generated by the browser).
+   ======================================================================= */
+
+/* ------------------------- 1. THE SCRIPT ------------------------------ */
+const SCRIPT = [
+  // say = spoken · txt = subtitle · rate/pitch = emphasis · pause = extra silence after the line (ms)
+  {say:"Scanning school network. Access granted.",     txt:"SCANNING SCHOOL NETWORK. ACCESS GRANTED.",
+                                                       fx:"boot", pause:1100},
+  {say:"I am the ghost in your network.",              txt:"I AM THE GHOST IN YOUR NETWORK."},
+  {say:"Last night, I walked into your school system.",txt:"LAST NIGHT, I WALKED INTO YOUR SCHOOL SYSTEM."},
+  {say:"I changed the passwords.",                     txt:"I CHANGED THE PASSWORDS."},
+  {say:"I scrambled the messages.",                    txt:"I SCRAMBLED THE MESSAGES."},
+  {say:"I hid your files.",                            txt:"I HID YOUR FILES.",                     fx:"glitch"},
+  {say:"And parts of your system… are now in German.", txt:"AND PARTS OF YOUR SYSTEM… ARE NOW IN GERMAN.",
+                                                       fx:"glitch", pause:1200},
+  {say:"Your teachers cannot fix this.",               txt:"YOUR TEACHERS CANNOT FIX THIS."},
+  {say:"Only, you can.",                               txt:"ONLY  Y O U  CAN.",
+                                                       rate:0.58, pitch:0.55, pause:1400},          // stressed
+  {say:"From this moment, you are not students.",      txt:"FROM THIS MOMENT, YOU ARE NOT STUDENTS."},
+  {say:"You are, agents.",                             txt:"YOU ARE  A G E N T S.",
+                                                       rate:0.58, pitch:0.5, fx:"glitch", pause:1300}, // stressed
+  {say:"Make 10 teams, choose a name for your team!",  txt:"MAKE 10 TEAMS — CHOOSE A NAME FOR YOUR TEAM!"},
+  {say:"Eleven stations. Eleven challenges. English and German.",
+                                                       txt:"11 STATIONS. 11 CHALLENGES. ENGLISH AND GERMAN.",
+                                                       pause:1000},
+  {say:"Solve a station, and my system gives one clue back to you.",
+                                                       txt:"SOLVE A STATION → THE SYSTEM GIVES BACK ONE CLUE."},
+  {say:"Green is your mission. Yellow and red are for the brave.",
+                                                       txt:"GREEN IS YOUR MISSION. YELLOW AND RED ARE FOR THE BRAVE."},
+  {say:"Collect all eleven clues. Put them in the right order.",
+                                                       txt:"COLLECT ALL 11 CLUES. PUT THEM IN THE RIGHT ORDER."},
+  {say:"Ten minutes at each station. Then you move.",  txt:"10 MINUTES AT EACH STATION. THEN YOU MOVE.",
+                                                       pause:1100},
+  {say:"If you fail, the school stays mine.",          txt:"IF YOU FAIL — THE SCHOOL STAYS MINE.",
+                                                       rate:0.6, pitch:0.35, fx:"alarm", pause:1300}, // stressed
+  {say:"The school is in your hands now.",             txt:"THE SCHOOL IS IN YOUR HANDS NOW.",       pause:1200},
+  {say:"Agents…",                                      txt:"AGENTS…",                  rate:0.6, pause:900},
+  {say:"your mission begins…",                         txt:"— YOUR MISSION BEGINS…",   rate:0.68, pause:1000},
+  {say:"now.",                                         txt:"…N O W.",
+                                                       rate:0.45, pitch:0.3, fx:"end"}               // stressed
+];
+
+/* ------------------------- 2. MATRIX + FACE --------------------------- */
+const cvs = document.getElementById('c'), ctx = cvs.getContext('2d');
+const CHARS = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ<>/\\|=+*#$%&";
+const rnd = a => a[(Math.random()*a.length)|0];
+const CW = 14, CH = 18, FONT = '15px "Courier New", monospace';
+
+let W,H,cols,rows,drops,face=[],hot=[],hotChar=[],rim=[],eyes=[],maskAt=null,mouth=null,mouthLevel=0, dpr=1;
+
+function layout(){
+  dpr = Math.min(window.devicePixelRatio||1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cvs.width = W*dpr; cvs.height = H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+  cols = Math.ceil(W/CW); rows = Math.ceil(H/CH);
+  drops = Array.from({length:cols},()=> Math.random()*-rows);
+  buildFace();
+}
+
+/* Build the face as a per-cell mask: 1 = face surface, 2 = glowing (eyes/nose) */
+function buildFace(){
+  const off = document.createElement('canvas');
+  off.width = cols; off.height = rows;
+  const o = off.getContext('2d');
+  o.setTransform(1/CW,0,0,1/CH,0,0);          // draw using pixel coordinates
+
+  const cx = W/2, cy = H*0.44;
+  const fh = Math.min(H*0.74, W*0.55), fw = fh*0.76;
+  const hw = fw/2, hh = fh/2, top = cy-hh, bot = cy+hh;
+
+  // --- skull / mask silhouette (red channel) ---
+  o.fillStyle = 'rgb(255,0,0)';
+  o.beginPath();
+  o.moveTo(cx, top);
+  o.bezierCurveTo(cx+hw*0.96, top+fh*0.03, cx+hw*1.00, cy-fh*0.14, cx+hw*0.92, cy+fh*0.02);
+  o.bezierCurveTo(cx+hw*0.84, cy+fh*0.20, cx+hw*0.58, cy+fh*0.28, cx+hw*0.46, cy+fh*0.33);
+  o.bezierCurveTo(cx+hw*0.34, cy+fh*0.44, cx+hw*0.22, bot,          cx,          bot);
+  o.bezierCurveTo(cx-hw*0.22, bot,          cx-hw*0.34, cy+fh*0.44, cx-hw*0.46, cy+fh*0.33);
+  o.bezierCurveTo(cx-hw*0.58, cy+fh*0.28,  cx-hw*0.84, cy+fh*0.20, cx-hw*0.92, cy+fh*0.02);
+  o.bezierCurveTo(cx-hw*1.00, cy-fh*0.14,  cx-hw*0.96, top+fh*0.03, cx,        top);
+  o.closePath(); o.fill();
+
+  // --- glowing parts (green channel): angry eyes + nose ---
+  o.fillStyle = 'rgb(0,255,0)';
+  const eye = s => {                          // s = +1 right, -1 left
+    o.beginPath();
+    o.moveTo(cx+s*hw*0.78, cy-fh*0.15);       // outer top
+    o.lineTo(cx+s*hw*0.20, cy-fh*0.02);       // inner top (lower = angry)
+    o.lineTo(cx+s*hw*0.22, cy+fh*0.08);       // inner bottom
+    o.lineTo(cx+s*hw*0.74, cy+fh*0.03);       // outer bottom
+    o.closePath(); o.fill();
+  };
+  eye(1); eye(-1);
+  o.beginPath();                               // nose
+  o.moveTo(cx, cy+fh*0.10);
+  o.lineTo(cx-fh*0.055, cy+fh*0.235);
+  o.lineTo(cx+fh*0.055, cy+fh*0.235);
+  o.closePath(); o.fill();
+
+  // read the mask back, one pixel per character cell
+  const d = o.getImageData(0,0,cols,rows).data;
+  face = []; hot = []; hotChar = []; maskAt = new Uint8Array(cols*rows);
+  for(let y=0;y<rows;y++) for(let x=0;x<cols;x++){
+    const k = y*cols+x, i = k*4;
+    if(d[i+1] > 90){ hot.push([x,y]); hotChar.push(rnd(CHARS)); maskAt[k]=2; }
+    else if(d[i] > 90){ face.push([x,y]); maskAt[k]=1; }
+  }
+  // glowing rim around every socket
+  rim = [];
+  const seen = new Set();
+  for(const [x,y] of hot){
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]){
+      const nx=x+dx, ny=y+dy, k=ny*cols+nx;
+      if(nx<0||ny<0||nx>=cols||ny>=rows) continue;
+      if(maskAt[k]!==2 && !seen.has(k)){ seen.add(k); rim.push([nx,ny]); }
+    }
+  }
+  eyes = [ {x: cx-hw*0.49, y: cy-fh*0.02, r: fh*0.055},
+           {x: cx+hw*0.49, y: cy-fh*0.02, r: fh*0.055} ];
+
+  // mouth = animated speaker grille
+  mouth = {
+    x0: Math.round((cx-fw*0.30)/CW), x1: Math.round((cx+fw*0.30)/CW),
+    y0: Math.round((cy+fh*0.28)/CH), y1: Math.round((cy+fh*0.42)/CH)
+  };
+}
+
+let glitchUntil = 0, speaking = false;
+function draw(){
+  requestAnimationFrame(draw);
+  ctx.fillStyle = 'rgba(0,0,0,0.085)';
+  ctx.fillRect(0,0,W,H);
+  ctx.font = FONT; ctx.textBaseline = 'top'; ctx.shadowBlur = 0;
+
+  // falling rain
+  for(let c=0;c<cols;c++){
+    const y = drops[c]|0;
+    if(y>=0 && y<rows){
+      const inFace = maskAt[y*cols+c];
+      if(!inFace){
+        ctx.fillStyle = '#7effa8';
+        ctx.fillText(rnd(CHARS), c*CW, y*CH);
+        if(y>0){ ctx.fillStyle='#0c6b28'; ctx.fillText(rnd(CHARS), c*CW, (y-1)*CH); }
+      }
+    }
+    drops[c] += 0.45 + Math.random()*0.55;
+    if(drops[c]*CH > H && Math.random() > 0.975) drops[c] = -Math.random()*20;
+  }
+
+  // the face shimmering out of the code
+  ctx.shadowColor = '#2bff77'; ctx.shadowBlur = 8;
+  ctx.fillStyle = '#7dffab';
+  for(let i=0, n=(face.length*0.16)|0; i<n; i++){
+    const p = face[(Math.random()*face.length)|0];
+    ctx.fillText(rnd(CHARS), p[0]*CW, p[1]*CH);
+  }
+  ctx.shadowBlur = 0;
+
+  // eye sockets + nose: dark voids punched out of the code
+  ctx.fillStyle = '#000';
+  for(let i=0;i<hot.length;i++) ctx.fillRect(hot[i][0]*CW-1, hot[i][1]*CH-1, CW+2, CH+2);
+
+  // burning rim around the sockets
+  const pulse = 0.75 + 0.25*Math.sin(performance.now()/420);
+  ctx.shadowColor = '#9dffc4'; ctx.shadowBlur = 20;
+  ctx.fillStyle = `rgba(236,255,242,${pulse})`;
+  for(let i=0;i<rim.length;i++){
+    ctx.fillText(rnd(CHARS), rim[i][0]*CW, rim[i][1]*CH);
+  }
+  ctx.shadowBlur = 0;
+
+  // pupils
+  for(const e of eyes){
+    const r = e.r*(0.85+0.25*Math.sin(performance.now()/300)) * (speaking?1.15:1);
+    const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, r*3);
+    g.addColorStop(0,'rgba(230,255,240,0.98)');
+    g.addColorStop(0.35,'rgba(80,255,140,0.55)');
+    g.addColorStop(1,'rgba(0,255,110,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(e.x, e.y, r*3, 0, 6.283); ctx.fill();
+  }
+
+  // mouth reacts to the voice
+  mouthLevel += ((speaking ? 0.55+Math.random()*0.45 : 0.08) - mouthLevel)*0.25;
+  const mh = (mouth.y1-mouth.y0)/2, mcy = (mouth.y0+mouth.y1)/2;
+  for(let x=mouth.x0;x<=mouth.x1;x++){
+    const edge = 1 - Math.abs((x-(mouth.x0+mouth.x1)/2)/((mouth.x1-mouth.x0)/2));
+    const h = Math.max(0, mh*mouthLevel*(0.45+edge*0.9)*(0.7+Math.random()*0.6));
+    for(let y=Math.round(mcy-h); y<=Math.round(mcy+h); y++){
+      ctx.fillStyle = 'rgba(200,255,215,0.95)';
+      ctx.fillText(rnd("01"), x*CW, y*CH);
+    }
+  }
+  ctx.shadowBlur = 0;
+
+  // glitch: tear a few horizontal slices apart
+  if(performance.now() < glitchUntil && Math.random() < 0.75){
+    for(let i=0;i<3;i++){
+      const y = Math.random()*H, hgt = 10+Math.random()*60, dx = (Math.random()-0.5)*90;
+      ctx.drawImage(cvs, 0, y*dpr, cvs.width, hgt*dpr, dx, y, W, hgt);
+    }
+  }
+}
+
+/* ------------------------- 3. SOUND (generated) ----------------------- */
+let AC=null, master=null, drone=null, droneOsc=[], soundOn=true;
+function audioInit(){
+  AC = new (window.AudioContext||window.webkitAudioContext)();
+  master = AC.createGain(); master.gain.value = 0.9; master.connect(AC.destination);
+}
+function startDrone(){
+  drone = AC.createGain(); drone.gain.value = 0; drone.connect(master);
+  const f = AC.createBiquadFilter(); f.type='lowpass'; f.frequency.value=420; f.connect(drone);
+  [55,55.6,82.5].forEach(hz=>{
+    const o = AC.createOscillator(); o.type='sawtooth'; o.frequency.value=hz; o.connect(f); o.start();
+    droneOsc.push(o);
+  });
+  // slow heartbeat pulse
+  const lfo = AC.createOscillator(), lg = AC.createGain();
+  lfo.frequency.value = 0.28; lg.gain.value = 0.035;
+  lfo.connect(lg); lg.connect(drone.gain); lfo.start(); droneOsc.push(lfo);
+  drone.gain.setValueAtTime(0, AC.currentTime);
+  drone.gain.linearRampToValueAtTime(0.10, AC.currentTime+2.5);
+}
+function noiseBurst(dur=0.25, vol=0.35, type='bandpass', freq=900){
+  if(!AC || !soundOn) return;
+  const n = AC.createBufferSource(), b = AC.createBuffer(1, AC.sampleRate*dur, AC.sampleRate);
+  const dta = b.getChannelData(0);
+  for(let i=0;i<dta.length;i++) dta[i] = (Math.random()*2-1)*(1-i/dta.length);
+  n.buffer = b;
+  const f = AC.createBiquadFilter(); f.type=type; f.frequency.value=freq; f.Q.value=2;
+  const g = AC.createGain(); g.gain.value = vol;
+  n.connect(f); f.connect(g); g.connect(master); n.start();
+}
+function beep(freq=880, dur=0.05, vol=0.05, type='square'){
+  if(!AC || !soundOn) return;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type=type; o.frequency.value=freq; g.gain.value=vol;
+  g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime+dur);
+  o.connect(g); g.connect(master); o.start(); o.stop(AC.currentTime+dur+0.02);
+}
+function alarm(){
+  if(!AC || !soundOn) return;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type='sawtooth'; g.gain.value=0.0001; o.connect(g); g.connect(master);
+  const t = AC.currentTime;
+  o.frequency.setValueAtTime(320,t); o.frequency.linearRampToValueAtTime(880,t+0.45);
+  o.frequency.linearRampToValueAtTime(320,t+0.9);
+  g.gain.linearRampToValueAtTime(0.10,t+0.1); g.gain.linearRampToValueAtTime(0.0001,t+0.95);
+  o.start(t); o.stop(t+1);
+}
+function bootSweep(){
+  if(!AC || !soundOn) return;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type='sine'; o.connect(g); g.connect(master);
+  const t = AC.currentTime;
+  o.frequency.setValueAtTime(80,t); o.frequency.exponentialRampToValueAtTime(1200,t+1.2);
+  g.gain.setValueAtTime(0.001,t); g.gain.linearRampToValueAtTime(0.07,t+0.3);
+  g.gain.linearRampToValueAtTime(0.0001,t+1.3);
+  o.start(t); o.stop(t+1.4);
+}
+function endStinger(){
+  if(!AC || !soundOn) return;
+  [220,277,330,440].forEach((f,i)=>{
+    const o=AC.createOscillator(), g=AC.createGain();
+    o.type='triangle'; o.frequency.value=f; g.gain.value=0.0001;
+    o.connect(g); g.connect(master);
+    const t=AC.currentTime+i*0.09;
+    g.gain.linearRampToValueAtTime(0.09,t+0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+1.6);
+    o.start(t); o.stop(t+1.7);
+  });
+}
+/* shut every sound down: fade the drone, stop the oscillators, close the context */
+function stopSound(delay = 2.2){
+  if(!AC) return;
+  soundOn = false;
+  const t = AC.currentTime;
+  if(drone){
+    drone.gain.cancelScheduledValues(t);
+    drone.gain.setValueAtTime(drone.gain.value, t);
+    drone.gain.linearRampToValueAtTime(0.0001, t + 1.4);
+  }
+  if(master){
+    master.gain.cancelScheduledValues(t);
+    master.gain.setValueAtTime(master.gain.value, t);
+    master.gain.setValueAtTime(master.gain.value, t + delay);   // let the last chord ring out
+    master.gain.linearRampToValueAtTime(0.0001, t + delay + 0.8);
+  }
+  setTimeout(()=>{
+    droneOsc.forEach(o=>{ try{ o.stop(); }catch(e){} });
+    droneOsc = []; drone = null;
+    try{ AC.close(); }catch(e){}
+    AC = null; master = null;
+  }, (delay + 1.2) * 1000);
+}
+
+function flash(){
+  const f = document.getElementById('flash');
+  f.style.transition='none'; f.style.opacity='.22';
+  requestAnimationFrame(()=>{ f.style.transition='opacity .35s'; f.style.opacity='0'; });
+}
+
+/* ------------------------- 4. VOICE ----------------------------------- */
+let voices = [], vEN = null, vDE = null;
+function pickVoices(){
+  voices = speechSynthesis.getVoices() || [];
+  const pref = (list, tag) => {
+    const same = list.filter(v => v.lang && v.lang.toLowerCase().startsWith(tag));
+    const male = same.find(v => /male|david|george|daniel|alex|markus|stefan|conrad/i.test(v.name));
+    return male || same[0] || null;
+  };
+  vEN = pref(voices,'en'); vDE = pref(voices,'de');
+}
+if('speechSynthesis' in window){
+  pickVoices();
+  speechSynthesis.onvoiceschanged = pickVoices;
+}
+
+/* ------------------------- 5. THE SHOW -------------------------------- */
+const capEl = document.getElementById('caption');
+const clockEl = document.getElementById('clock');
+let idx = 0, running = false, timer = null, typeTimer = null;
+
+function type(text, ms){
+  clearInterval(typeTimer);
+  let i = 0;
+  capEl.textContent = '';
+  const step = Math.max(14, ms/Math.max(text.length,1));
+  typeTimer = setInterval(()=>{
+    capEl.textContent = text.slice(0, ++i);
+    if(i%2===0 && AC) beep(1400+Math.random()*500, 0.02, 0.012, 'square');
+    if(i>=text.length) clearInterval(typeTimer);
+  }, step);
+}
+
+function doFx(fx){
+  if(!AC || !soundOn) return;
+  if(fx==='glitch'){ glitchUntil = performance.now()+420; noiseBurst(0.18,0.30,'bandpass',1400); flash(); }
+  if(fx==='alarm'){ glitchUntil = performance.now()+300; alarm(); flash(); }
+  if(fx==='boot'){ bootSweep(); }
+  if(fx==='end'){ glitchUntil = performance.now()+700; noiseBurst(0.5,0.35,'lowpass',600); endStinger(); }
+}
+
+function line(n){
+  if(n >= SCRIPT.length){ finish(); return; }
+  idx = n;
+  const L = SCRIPT[n];
+  capEl.className = L.lang === 'de' ? 'de' : '';
+  clockEl.textContent = 'TRANSMISSION ' + String(n+1).padStart(2,'0') + '/' + SCRIPT.length;
+  doFx(L.fx);
+
+  const fallback = Math.max(1600, L.say.split(' ').length*430);
+  type(L.txt, Math.min(fallback*0.7, 2000));
+
+  const t0 = performance.now();
+  const minDur = Math.max(1500, L.say.split(' ').length*330);   // readable pace if voice fails
+  let advanced = false;
+  const next = () => {
+    if(advanced) return; advanced = true;
+    const gap = (L.pause != null ? L.pause : (L.fx==='end' ? 700 : 430));
+    const wait = Math.max(gap, minDur - (performance.now()-t0));
+    timer = setTimeout(()=>{ speaking=false; line(n+1); }, wait);
+  };
+
+  if('speechSynthesis' in window && (vEN || vDE || speechSynthesis.getVoices().length >= 0)){
+    const u = new SpeechSynthesisUtterance(L.say);
+    if(L.lang === 'de'){ u.lang='de-DE'; if(vDE) u.voice = vDE; }
+    else               { u.lang='en-GB'; if(vEN) u.voice = vEN; }
+    u.rate = L.rate || 0.86; u.pitch = (L.pitch != null ? L.pitch : 0.45); u.volume = 1;
+    u.onstart = () => { speaking = true; };
+    u.onend = next;
+    u.onerror = next;
+    speaking = true;
+    speechSynthesis.speak(u);
+    timer = setTimeout(next, fallback + 4000);       // safety net if onend never fires
+  } else {
+    speaking = true;
+    timer = setTimeout(next, fallback);
+  }
+}
+
+function finish(){
+  speaking = false;
+  clearTimeout(timer);
+  if('speechSynthesis' in window) speechSynthesis.cancel();
+  stopSound();                       // drone + everything else fades out and shuts down
+  clockEl.textContent = 'SYSTEM: LOCKED';
+  capEl.className = '';
+  capEl.innerHTML = '<span style="color:#ff4d4d">&#9632; SAVE YOUR SCHOOL &#9632;</span>';
+  document.getElementById('brief').style.display = 'flex';
+}
+
+function begin(){
+  if(running) return; running = true;
+  document.getElementById('start').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+  audioInit(); startDrone();
+  if('speechSynthesis' in window){ speechSynthesis.cancel(); pickVoices(); }
+  setTimeout(()=>line(0), 900);
+}
+
+document.getElementById('go').addEventListener('click', begin);
+
+document.addEventListener('keydown', e=>{
+  const k = e.key.toLowerCase();
+  if(k===' ' || k==='enter'){ if(!running) begin(); }
+  if(k==='s' && running){ clearTimeout(timer); if('speechSynthesis' in window) speechSynthesis.cancel();
+                          speaking=false; line(idx+1); }
+  if(k==='r'){ if('speechSynthesis' in window) speechSynthesis.cancel(); stopSound(0); location.reload(); }
+  if(k==='m'){ if('speechSynthesis' in window) speechSynthesis.cancel(); stopSound(0); }   // panic silence
+  if(k==='f'){ document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+});
+
+window.addEventListener('resize', layout);
+window.addEventListener('beforeunload', ()=>{
+  if('speechSynthesis' in window) speechSynthesis.cancel();
+  stopSound(0);
+});
+layout(); draw();
+</script>
+</body>
+</html>

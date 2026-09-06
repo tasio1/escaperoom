@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title id="pageTitle">The Security Control Room — Station 04</title>
+<style>
+/* ============================================================
+   STATION 4 — THE SECURITY CONTROL ROOM
+   Visual skin: Doctor Who (TARDIS console / time vortex).
+   Style block only — the game engine JavaScript below is the
+   shared, tested station engine and is untouched.
+   ============================================================ */
+
+:root{
+  --bg:#01060f;
+  --bg2:#03142a;
+  --panel:rgba(5,20,42,.90);
+  --panel-2:rgba(7,26,52,.94);
+  --line:rgba(255,178,71,.30);
+  --line-soft:rgba(99,184,255,.22);
+  --text:#dbe8fa;
+  --muted:#8098bb;
+  --green:#3fe0a8;
+  --green-dim:#155947;
+  --yellow:#ffb43c;
+  --red:#ff5a63;
+  --cyan:#63b8ff;
+  --gold:#ffcb63;
+  --mono:ui-monospace,"SFMono-Regular","JetBrains Mono","Cascadia Mono",Consolas,"Liberation Mono",monospace;
+  --sans:"Segoe UI",Inter,system-ui,-apple-system,Roboto,Arial,sans-serif;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:
+    radial-gradient(1100px 700px at 50% 34%, rgba(20,72,140,.55) 0%, transparent 62%),
+    radial-gradient(900px 600px at 50% -12%, #0a2a4e 0%, transparent 64%),
+    linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:19px;
+  line-height:1.55;
+  min-height:100%;
+}
+/* the time vortex canvas */
+#matrix{position:fixed;inset:0;z-index:0;opacity:.62;pointer-events:none}
+
+/* TARDIS roundels instead of the terminal grid */
+.grid-overlay{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(120,190,255,.075) 0 15px, transparent 16px),
+    radial-gradient(circle at 50% 50%, rgba(120,190,255,.05) 0 20px, transparent 21px);
+  background-size:74px 74px, 74px 74px;
+  mask-image:radial-gradient(circle at 50% 35%,transparent 0%,#000 85%);
+  -webkit-mask-image:radial-gradient(circle at 50% 35%,transparent 0%,#000 85%);
+}
+.scanlines{
+  position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.28;
+  background:repeating-linear-gradient(180deg,rgba(0,0,0,0) 0 3px,rgba(0,6,16,.30) 3px 4px);
+}
+.wrap{position:relative;z-index:3;max-width:1000px;margin:0 auto;padding:22px 20px 80px}
+
+/* ---------- header: TARDIS sign plate ---------- */
+header.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  border:1px solid var(--line);border-radius:6px;
+  background:linear-gradient(180deg,rgba(9,38,74,.94),rgba(4,18,38,.94));
+  backdrop-filter:blur(4px);
+  box-shadow:0 0 0 1px rgba(0,0,0,.5), 0 0 34px rgba(50,140,255,.16), inset 0 1px 0 rgba(140,200,255,.18);
+  padding:12px 16px;margin-bottom:18px;
+}
+.brand{font-family:var(--mono);letter-spacing:.22em;font-size:14px;color:var(--gold);text-transform:uppercase;text-shadow:0 0 16px rgba(255,180,60,.5)}
+.brand small{display:block;color:var(--cyan);letter-spacing:.26em;font-size:11px;margin-top:3px;text-shadow:none}
+.topright{display:flex;align-items:center;gap:12px}
+#teamBadge{font-family:var(--mono);font-size:14px;color:var(--cyan);border:1px solid rgba(99,184,255,.4);border-radius:999px;padding:5px 14px;display:none;background:rgba(20,70,130,.35)}
+.finish-btn{
+  font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+  background:transparent;color:var(--red);border:1px solid rgba(255,90,99,.5);
+  border-radius:6px;padding:8px 14px;cursor:pointer;transition:.15s;
+  box-shadow:0 0 16px rgba(255,90,99,.12) inset;
+}
+.finish-btn:hover{background:rgba(255,90,99,.14);border-color:var(--red);box-shadow:0 0 20px rgba(255,90,99,.35)}
+
+/* ---------- progress rail: three console rotors ---------- */
+.rail{display:flex;align-items:stretch;gap:10px;margin-bottom:18px}
+.rail .step{
+  position:relative;overflow:hidden;
+  flex:1;border:1px solid var(--line-soft);border-radius:6px;
+  background:linear-gradient(180deg,rgba(7,28,56,.8),rgba(3,14,30,.8));
+  padding:10px 14px;font-family:var(--mono);font-size:13px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px;
+  transition:.25s;
+}
+.rail .step::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:transparent;transition:.25s}
+.rail .dot{width:10px;height:10px;border-radius:50%;background:#1d3a5c;flex:none}
+.rail .step.g.active{color:var(--green);border-color:rgba(63,224,168,.5);box-shadow:0 0 26px rgba(63,224,168,.12) inset}
+.rail .step.g.active::after{background:var(--green);box-shadow:0 0 14px var(--green)}
+.rail .step.g.active .dot{background:var(--green);box-shadow:0 0 12px var(--green)}
+.rail .step.y.active{color:var(--yellow);border-color:rgba(255,180,60,.5);box-shadow:0 0 26px rgba(255,180,60,.12) inset}
+.rail .step.y.active::after{background:var(--yellow);box-shadow:0 0 14px var(--yellow)}
+.rail .step.y.active .dot{background:var(--yellow);box-shadow:0 0 12px var(--yellow)}
+.rail .step.r.active{color:var(--red);border-color:rgba(255,90,99,.5);box-shadow:0 0 26px rgba(255,90,99,.12) inset}
+.rail .step.r.active::after{background:var(--red);box-shadow:0 0 14px var(--red)}
+.rail .step.r.active .dot{background:var(--red);box-shadow:0 0 12px var(--red)}
+.rail .step.done{color:#9db8d6;border-color:rgba(63,224,168,.28)}
+.rail .step.done .dot{background:var(--green-dim)}
+
+/* ---------- panels: console bays ---------- */
+.panel{
+  position:relative;
+  border:1px solid var(--line-soft);border-radius:8px;
+  background:linear-gradient(180deg,rgba(6,24,48,.92),rgba(3,13,28,.92));
+  padding:26px 26px 30px;margin-bottom:18px;backdrop-filter:blur(3px);
+  box-shadow:0 22px 60px rgba(0,0,0,.55), inset 0 1px 0 rgba(140,200,255,.12);
+}
+.panel::before,.panel::after{
+  content:"";position:absolute;width:16px;height:16px;border:1px solid rgba(255,203,99,.5);pointer-events:none;
+}
+.panel::before{top:8px;left:8px;border-right:none;border-bottom:none}
+.panel::after{bottom:8px;right:8px;border-left:none;border-top:none}
+.panel.green{border-color:rgba(63,224,168,.32)}
+.panel.yellow{border-color:rgba(255,180,60,.32)}
+.panel.red{border-color:rgba(255,90,99,.32)}
+h1{
+  font-family:var(--sans);font-weight:800;font-size:clamp(28px,5vw,48px);letter-spacing:.16em;margin:.1em 0 .12em;
+  color:#eaf4ff;text-transform:uppercase;
+  text-shadow:0 0 8px rgba(120,190,255,.9),0 0 34px rgba(40,120,220,.7),0 0 60px rgba(20,80,180,.5);
+}
+h2{font-family:var(--mono);font-size:22px;letter-spacing:.14em;text-transform:uppercase;margin:0 0 6px}
+h3{font-family:var(--mono);font-size:15px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.sub{font-family:var(--mono);letter-spacing:.26em;color:var(--gold);text-transform:uppercase;font-size:14px}
+.intro{
+  border-left:3px solid var(--cyan);background:linear-gradient(90deg,rgba(40,120,220,.16),rgba(40,120,220,.03));
+  padding:14px 18px;margin:22px 0;font-size:20px;border-radius:0 8px 8px 0;
+}
+/* highlighted modal verbs inside task descriptions */
+.mv{
+  color:var(--yellow);font-weight:700;font-family:var(--mono);font-size:.94em;
+  background:rgba(255,180,60,.11);border:1px solid rgba(255,180,60,.34);
+  border-radius:5px;padding:1px 7px;white-space:nowrap;
+  text-shadow:0 0 12px rgba(255,180,60,.45);
+}
+.muted{color:var(--muted)}
+.center{text-align:center}
+
+/* ---------- controls ---------- */
+label.fieldlabel{display:block;font-family:var(--mono);letter-spacing:.18em;text-transform:uppercase;font-size:13px;color:var(--muted);margin-bottom:8px}
+input[type=text]{
+  width:100%;font-family:var(--mono);font-size:22px;color:#eaf4ff;
+  background:rgba(2,10,22,.92);border:1px solid rgba(99,184,255,.35);border-radius:6px;
+  padding:14px 16px;outline:none;transition:.15s;
+}
+input[type=text]:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(99,184,255,.16),0 0 24px rgba(60,150,255,.25)}
+input.blank{
+  width:auto;min-width:210px;display:inline-block;font-size:20px;padding:9px 12px;
+  vertical-align:middle;margin:0 4px;
+}
+input.blank.ok{border-color:var(--green);color:var(--green);background:rgba(63,224,168,.10);box-shadow:0 0 18px rgba(63,224,168,.18)}
+input.blank.bad{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,90,99,.14)}
+input:disabled{opacity:1;cursor:not-allowed}
+button{
+  font-family:var(--mono);letter-spacing:.18em;text-transform:uppercase;font-size:16px;font-weight:700;
+  color:#02201a;background:linear-gradient(180deg,#5cf0bd,#17b98a);
+  border:none;border-radius:6px;padding:16px 26px;cursor:pointer;
+  box-shadow:0 0 30px rgba(63,224,168,.28);transition:.18s;
+}
+button:hover{filter:brightness(1.12);transform:translateY(-1px)}
+button:active{transform:translateY(0)}
+button.ghost{background:transparent;color:var(--text);border:1px solid var(--line-soft);box-shadow:none}
+button.ghost:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 20px rgba(99,184,255,.2)}
+button.yellow{background:linear-gradient(180deg,#ffd383,#f09a10);color:#211200;box-shadow:0 0 30px rgba(255,180,60,.3)}
+button.red{background:linear-gradient(180deg,#ff8c92,#e03a44);color:#230508;box-shadow:0 0 30px rgba(255,90,99,.28)}
+button.danger{background:linear-gradient(180deg,#ff8c92,#e03a44);color:#230508}
+.btnrow{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
+.err{color:var(--red);font-family:var(--mono);font-size:15px;margin-top:12px;min-height:22px}
+
+/* ---------- questions ---------- */
+.qlist{list-style:none;padding:0;margin:16px 0 0}
+.qitem{
+  border:1px solid var(--line-soft);border-radius:8px;background:rgba(4,17,35,.7);
+  padding:16px 18px;margin-bottom:12px;display:flex;gap:14px;align-items:flex-start;
+}
+.qitem.ok{border-color:rgba(63,224,168,.45);background:rgba(63,224,168,.07)}
+.qitem.bad{border-color:rgba(255,90,99,.45)}
+.qnum{font-family:var(--mono);font-size:15px;color:var(--gold);min-width:34px;padding-top:12px}
+.qbody{flex:1}
+.qtext{font-size:20px;line-height:2.1}
+.mark{font-family:var(--mono);font-size:15px;margin-top:8px;min-height:20px}
+.mark.ok{color:var(--green)}
+.mark.bad{color:var(--red)}
+.counter{font-family:var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-size:14px}
+.bigscore{font-family:var(--mono);font-size:clamp(28px,6vw,46px);letter-spacing:.06em;margin:6px 0}
+.bar{height:10px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;margin:14px 0 6px;border:1px solid rgba(99,184,255,.15)}
+.bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#17b98a,#5cf0bd);transition:width .45s ease;box-shadow:0 0 16px rgba(63,224,168,.6)}
+.bar.y > i{background:linear-gradient(90deg,#f09a10,#ffd383);box-shadow:0 0 16px rgba(255,180,60,.6)}
+.bar.r > i{background:linear-gradient(90deg,#e03a44,#ff8c92);box-shadow:0 0 16px rgba(255,90,99,.6)}
+
+/* ---------- answer review ---------- */
+.fill{font-family:var(--mono);font-weight:700;padding:2px 8px;border-radius:5px}
+.fill.good{color:var(--green);background:rgba(63,224,168,.14);border:1px solid rgba(63,224,168,.45)}
+.yours{font-family:var(--mono);font-size:16px;color:var(--red);margin-top:6px}
+.yours.ok{color:var(--green)}
+.review-note{border-left:3px solid var(--cyan);background:rgba(99,184,255,.08);padding:12px 16px;font-size:17px;margin:16px 0;border-radius:0 8px 8px 0}
+
+/* ---------- clue: psychic paper ---------- */
+.clue-card{
+  border:2px dashed var(--gold);border-radius:10px;
+  background:radial-gradient(circle at 50% 40%,rgba(255,203,99,.16),rgba(255,180,60,.04) 70%);
+  padding:30px;text-align:center;margin:24px 0;
+  box-shadow:0 0 50px rgba(255,180,60,.18), inset 0 0 40px rgba(255,180,60,.08);
+  animation:pop .5s ease;
+}
+@keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+.clue-word{font-family:var(--mono);font-size:clamp(34px,8vw,64px);letter-spacing:.22em;color:var(--gold);text-shadow:0 0 12px rgba(255,203,99,.8),0 0 40px rgba(255,180,60,.6)}
+
+/* ---------- summary ---------- */
+.rows{margin:18px 0}
+.row{display:flex;justify-content:space-between;gap:16px;border-bottom:1px dashed rgba(128,152,187,.24);padding:12px 2px;font-size:19px}
+.row b{font-family:var(--mono)}
+.total{font-family:var(--mono);font-size:clamp(26px,5vw,40px);color:var(--gold);letter-spacing:.08em;margin-top:14px;text-shadow:0 0 26px rgba(255,180,60,.5)}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:16px;margin-top:12px}
+th,td{border-bottom:1px solid rgba(128,152,187,.2);padding:10px 8px;text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);text-transform:uppercase;letter-spacing:.14em;font-size:12px}
+tr.win td{color:var(--gold)}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.tag{font-family:var(--mono);font-size:14px;border:1px solid rgba(99,184,255,.3);border-radius:999px;padding:5px 12px;color:#bcdcff;background:rgba(30,90,160,.22)}
+
+/* ---------- teacher modal ---------- */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(1,6,14,.84);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.modal.open{display:flex}
+.modal .box{max-width:820px;width:100%;border:1px solid var(--line);border-radius:8px;background:#05162c;padding:26px}
+.hidden{display:none !important}
+.filestatus{font-family:var(--mono);font-size:14px;color:var(--muted);margin-top:10px}
+@media (max-width:680px){
+  body{font-size:17px}
+  .rail{flex-direction:column}
+  input.blank{min-width:150px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+<div class="grid-overlay"></div>
+<div class="scanlines"></div>
+
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand"><span id="brandName">Grammar Station</span><small id="brandStation">Station 04</small></div>
+    <div class="topright">
+      <span id="teamBadge"></span>
+      <button class="finish-btn hidden" id="finishStationBtn">Finish the station</button>
+    </div>
+  </header>
+
+  <div class="rail" id="rail">
+    <div class="step g" id="railG"><span class="dot"></span><span id="railGLabel">Green</span></div>
+    <div class="step y" id="railY"><span class="dot"></span><span id="railYLabel">Yellow</span></div>
+    <div class="step r" id="railR"><span class="dot"></span><span id="railRLabel">Red</span></div>
+  </div>
+
+  <!-- ============ START ============ -->
+  <section class="panel" id="screen-start">
+    <div class="center">
+      <h1 id="startTitle">Grammar Station</h1>
+      <div class="sub" id="startSubtitle">Station 4 — Modal Verbs</div>
+    </div>
+    <div class="intro" id="introText">
+      Write two short story lines here.
+    </div>
+    <label class="fieldlabel" for="teamInput">Enter your team name</label>
+    <input type="text" id="teamInput" autocomplete="off" spellcheck="false" placeholder="e.g. Grammar Warriors">
+    <div class="err" id="startErr"></div>
+    <div class="btnrow"><button id="startBtn"></button></div>
+    <div style="margin-top:26px">
+      <h3 style="margin-bottom:8px">Mission log</h3>
+      <div class="tags" id="teamsList"></div>
+    </div>
+  </section>
+
+  <!-- ============ GREEN ============ -->
+  <section class="panel green hidden" id="screen-green">
+    <h2 style="color:var(--green)" id="greenTitle">Green</h2>
+    <h3 id="greenSubheading">Complete the mission</h3>
+    <p class="muted" style="font-size:17px" id="greenInstructions">Fill in every gap. You may try as many times as you need. Correct answers lock automatically.</p>
+    <div class="bar"><i id="greenBar"></i></div>
+    <div class="counter" id="greenCounter">0 / 0</div>
+    <ul class="qlist" id="greenList"></ul>
+    <div class="err" id="greenMsg"></div>
+    <div class="btnrow"><button id="greenCheck">Check answers</button></div>
+  </section>
+
+  <!-- ============ CLUE ============ -->
+  <section class="panel green hidden" id="screen-clue">
+    <div class="center">
+      <h1 style="font-size:clamp(26px,5vw,40px)" id="greenCompleteHeadline">Green completed</h1>
+      <div class="sub">Green completed — 10 / 10</div>
+      <div class="clue-card">
+        <h3 style="margin-bottom:6px">Clue unlocked</h3>
+        <div class="clue-word" id="clueWord"></div>
+        <p style="margin:14px 0 0;font-size:16px;color:var(--red);font-weight:700">Write this clue down. You will need it at the end of the escape room.</p>
+      </div>
+      <p class="muted" style="font-size:17px">Green gives <b>0 competition points</b>. Points start now.</p>
+      <div class="btnrow" style="justify-content:center"><button class="yellow" id="toYellow">Continue to Yellow</button></div>
+    </div>
+  </section>
+
+  <!-- ============ YELLOW ============ -->
+  <section class="panel yellow hidden" id="screen-yellow">
+    <h2 style="color:var(--yellow)" id="yellowTitle">Yellow</h2>
+    <h3><span id="yellowCounter">Question 1 / 5</span> &nbsp;·&nbsp; +1 point per correct answer</h3>
+    <div class="bar y"><i id="yellowBar"></i></div>
+    <p class="muted" style="font-size:17px" id="yellowInstructions"></p>
+    <div id="yellowQ" class="qtext" style="margin:22px 0 6px"></div>
+    <div class="err" id="yellowErr"></div>
+    <div class="btnrow"><button class="yellow" id="yellowSubmit">Submit answer</button></div>
+  </section>
+
+  <!-- ============ YELLOW REVIEW ============ -->
+  <section class="panel yellow hidden" id="screen-yellow-review">
+    <h2 style="color:var(--yellow)">Yellow — correct answers</h2>
+    <h3 id="yellowReviewTopic">Grammar topic</h3>
+    <div class="center bigscore" style="color:var(--yellow);font-size:clamp(22px,3.4vw,32px)" id="yellowScoreBig"></div>
+    <div class="review-note">Read the correct version of every sentence. Your Yellow score is already saved and cannot change.</div>
+    <ul class="qlist" id="yellowReview"></ul>
+    <div class="btnrow"><button class="red" id="toRed">Continue to Red</button></div>
+  </section>
+
+  <!-- ============ RED ============ -->
+  <section class="panel red hidden" id="screen-red">
+    <h2 style="color:var(--red)" id="redTitle">Red</h2>
+    <h3><span id="redCounter">Question 1 / 5</span> &nbsp;·&nbsp; +2 points per correct answer</h3>
+    <div class="bar r"><i id="redBar"></i></div>
+    <p class="muted" style="font-size:17px" id="redInstructions"></p>
+    <div id="redQ" class="qtext" style="margin:22px 0 6px"></div>
+    <div class="err" id="redErr"></div>
+    <div class="btnrow"><button class="red" id="redSubmit">Submit answer</button></div>
+  </section>
+
+  <!-- ============ RED REVIEW ============ -->
+  <section class="panel red hidden" id="screen-red-review">
+    <h2 style="color:var(--red)">Red — correct answers</h2>
+    <h3 id="redReviewTopic">Grammar topic</h3>
+    <div class="center bigscore" style="color:var(--red);font-size:clamp(22px,3.4vw,32px)" id="redScoreBig"></div>
+    <div class="review-note">Read the correct version of every sentence. Your Red score is already saved and cannot change.</div>
+    <ul class="qlist" id="redReview"></ul>
+    <div class="btnrow"><button id="toEnd">See final score</button></div>
+  </section>
+
+  <!-- ============ END ============ -->
+  <section class="panel hidden" id="screen-end">
+    <div class="center">
+      <div class="sub" style="margin-bottom:4px" id="endStationLabel">Station 04</div>
+      <h1 style="font-size:clamp(24px,4.6vw,38px)" id="missionCompleteHeadline">Station mission completed</h1>
+      <div class="sub" id="endTeam"></div>
+    </div>
+    <div class="rows" id="endRows"></div>
+    <div class="center total" id="endTotal"></div>
+    <div class="center" id="allDone"></div>
+    <div class="btnrow" style="justify-content:center">
+      <button id="nextTeam">Next team →</button>
+      <button class="ghost" id="endExport">Save results.md</button>
+    </div>
+  </section>
+</div>
+
+
+<script>
+/* ==================================================================
+   ██  EDIT YOUR CONTENT HERE — SECTION 1: IDENTITY & LABELS  ██
+   ------------------------------------------------------------------
+   Everything in CONFIG controls the station's name, story framing and
+   on-screen wording. None of it affects scoring or game logic — it is
+   pure text/HTML that gets written into the page when the game boots.
+   ================================================================== */
+const CONFIG = {
+  // Big title on the start screen and the browser tab / header brand.
+  gameName: "The Security Control Room",
+  // Short station tag shown next to the game name.
+  stationLabel: "Station 04",
+  // One line under the big title.
+  subtitle: "Station 4 — Modal Verbs",
+  // Story framing shown on the start screen. HTML allowed.
+  introHTML: "The school's security system has dropped into <b>emergency mode</b>. Every door, every screen and every rule now runs through this room, and the clocks on the wall are turning the wrong way.<br><br>Morten has the new security protocol on the main monitor, but the words that carry the rules — <i>can, can't, must, mustn't, should, have to</i> — have been wiped out of every line. The police are waiting for something else too: your deduction about what the hacker <i>must</i>, <i>might</i> or <i>can't</i> have done.",
+
+  green: {
+    railLabel: "Green — Security rules",
+    panelTitle: "Green — The emergency protocol",
+    subheading: "Restore the ten security rules",
+    instructionsHTML: "Complete each rule with <b class=\"mv\">can</b> <b class=\"mv\">can't</b> <b class=\"mv\">must</b> <b class=\"mv\">mustn't</b> &nbsp;— you may try as many times as you need. Correct answers lock automatically, and wrong ones stay open for another attempt.",
+    progressLabel: "Rules restored",
+    completeHeadline: "Security protocol restored"
+  },
+  yellow: {
+    railLabel: "Yellow — Advice & obligation",
+    panelTitle: "Yellow — Advice and obligation",
+    // Instruction line above the question. HTML allowed; <b class="mv">word</b>
+    // prints a modal verb as a highlighted yellow chip.
+    instructionsHTML: "Complete each sentence with the best option: <b class=\"mv\">should</b> <b class=\"mv\">shouldn't</b> <b class=\"mv\">have to</b> <b class=\"mv\">don't have to</b> &nbsp;— one attempt only, your first answer counts.",
+    reviewTopic: "Advice and obligation"
+  },
+  red: {
+    railLabel: "Red — Deduction",
+    panelTitle: "Red — Deduction",
+    instructionsHTML: "Read the evidence, then complete the deduction with <b class=\"mv\">must</b> <b class=\"mv\">might</b> <b class=\"mv\">could</b> <b class=\"mv\">can't</b> &nbsp;— one attempt only, your first answer counts.",
+    reviewTopic: "Modal verbs of deduction"
+  },
+
+  missionCompleteHeadline: "Control room secured",
+  allTeamsHeadline: "Every team has passed through the control room",
+  startButtonLabel: "Enter the control room"
+};
+
+/* ==================================================================
+   ██  EDIT YOUR CONTENT HERE — SECTION 2: QUESTIONS  ██
+   ------------------------------------------------------------------
+   "question"  the sentence. Every ___  (three underscores) becomes an
+               input box on screen.
+   "answers"   the accepted answer(s).
+
+     ONE blank  ->  answers: ["must"]                 (list of accepted spellings)
+     TWO blanks ->  answers: [ ["must"], ["can"] ]    (one list per blank)
+
+   Answer checking ignores CAPITAL letters, extra spaces and the type
+   of apostrophe. The FIRST answer listed is the one shown as the model
+   answer on the Yellow/Red review screens.
+
+   SCORING: Green 0 points (10/10 unlocks the clue) · Yellow +1 · Red +2
+   ================================================================== */
+
+const stationData = {
+
+  /* ---- THE STATION CLUE (shown after Green 10/10) ---- */
+  clue: "BEHIND",
+
+  /* ---- 🟢 GREEN — 10 questions — mandatory, 0 points ----
+     can / can't / must / mustn't
+     Prohibition rules accept BOTH "mustn't" and "can't" — both are
+     correct English here. If you want to force "mustn't", delete the
+     "can't", "cannot", "can not" and "cant" entries from that line. */
+  green: [
+    { question: "Students ___ leave the computer room until the teacher says it is safe.",
+      answers: ["mustn't","must not","mustnt","can't","cannot","can not","cant"] },
+
+    { question: "You ___ share your school password with other students.",
+      answers: ["mustn't","must not","mustnt","can't","cannot","can not","cant"] },
+
+    { question: "Teachers ___ contact the IT department if they see a suspicious message.",
+      answers: ["must"] },
+
+    { question: "Students ___ use the emergency computer if the teacher gives permission.",
+      answers: ["can"] },
+
+    { question: "You ___ open unknown files during the security alert.",
+      answers: ["mustn't","must not","mustnt","can't","cannot","can not","cant"] },
+
+    { question: "Everyone ___ follow the teacher's instructions.",
+      answers: ["must"] },
+
+    { question: "Students ___ use their phones to contact their parents if the teacher allows it.",
+      answers: ["can"] },
+
+    { question: "You ___ turn off a school computer without asking the teacher first.",
+      answers: ["mustn't","must not","mustnt","can't","cannot","can not","cant"] },
+
+    { question: "The IT team ___ enter the server room because they have permission.",
+      answers: ["can"] },
+
+    { question: "Everyone ___ keep their password secret.",
+      answers: ["must"] }
+  ],
+
+  /* ---- 🟡 YELLOW — +1 point each ----
+     should / shouldn't / have to / don't have to */
+  yellow: [
+    { question: "Students ___ try to repair the school computers themselves.",
+      answers: ["shouldn't","should not","shouldnt"], points: 1 },
+
+    { question: "You ___ change your password if you think someone else knows it.",
+      answers: ["should"], points: 1 },
+
+    /* Both readings are accepted here: teams do NOT need Red to move on
+       (Green unlocks the clue), but "have to" is grammatically fine too.
+       Delete the unwanted entries to force one answer. */
+    { question: "The teams ___ complete the Red task to move to the next station.",
+      answers: ["don't have to","do not have to","dont have to","have to"], points: 1 },
+
+    { question: "Students ___ use simple passwords like “123456”.",
+      answers: ["shouldn't","should not","shouldnt"], points: 1 },
+
+    /* Model answer is "has to" (third person singular). "have to" is also
+       accepted so a team is not punished for copying the word list. */
+    { question: "Tommy ___ inform the staff if the security situation changes.",
+      answers: ["has to","have to"], points: 1 }
+  ],
+
+  /* ---- 🔴 RED — +2 points each ----
+     must / might / could / can't  (deduction) */
+  red: [
+    { question: "The computer was unlocked with the administrator password. The hacker ___ know the password.",
+      answers: ["must"], points: 2 },
+
+    { question: "Noah's computer was turned off all morning. He ___ have sent the message from that computer.",
+      answers: ["can't","cannot","can not","cant","couldn't","could not","couldnt"], points: 2 },
+
+    { question: "The message came from inside the school network. The hacker ___ have been in the building, but we are not sure.",
+      answers: ["might","could","may"], points: 2 },
+
+    { question: "The police found no fingerprints on the USB stick, so it ___ have been cleaned before it was left in the classroom.",
+      answers: ["must"], points: 2 },
+
+    { question: "The police have not identified the hacker yet. The person ___ still be connected to the school, but there is not enough evidence to be certain.",
+      answers: ["might","could","may"], points: 2 }
+  ]
+};
+
+/* ---- Other settings a teacher might want to change ---- */
+const TOTAL_TEAMS   = 10;                                    // how many teams play this station
+const STORAGE_KEY   = "securityControlStation4Results_v1";   // unique per station file
+const RESULTS_TITLE = "# Station 4 — The Security Control Room Results";
+
+/* ==================================================================
+   ██  GAME ENGINE — you do not need to edit below this line  ██
+   ================================================================== */
+
+/* ---------- small helpers ---------- */
+const $  = (id) => document.getElementById(id);
+const norm = (s) => String(s||"")
+  .replace(/[‘’ʼ´`]/g, "'")   // curly apostrophes -> '
+  .replace(/\s+/g, " ")
+  .trim()
+  .toLowerCase();
+
+/** Normalise a question's answers into an array of blanks: [[a,b],[c]] */
+function blanksOf(q){
+  const a = q.answers;
+  if (!Array.isArray(a)) return [[String(a)]];
+  return Array.isArray(a[0]) ? a : [a];
+}
+function isAccepted(value, accepted){
+  const v = norm(value);
+  return accepted.some(x => norm(x) === v);
+}
+function two(n){ return String(n).padStart(2,"0"); }
+function clockString(d){ return two(d.getHours())+":"+two(d.getMinutes())+":"+two(d.getSeconds()); }
+function durationString(ms){
+  const s = Math.max(0, Math.round(ms/1000));
+  return two(Math.floor(s/60))+":"+two(s%60);
+}
+function esc(s){ return String(s).replace(/[<>&]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;"}[c])); }
+
+/* ---------- persistent results ---------- */
+function loadResults(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch(e){ return []; }
+}
+function saveResults(list){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
+  catch(e){ console.warn("localStorage unavailable", e); }
+}
+function buildMarkdown(){
+  const list = loadResults();
+  let md = RESULTS_TITLE + "\n\n";
+  md += "_" + list.length + " team(s) recorded. Winner = Yellow + Red points only._\n\n";
+  list.forEach(r => {
+    md += "## " + r.team + "\n";
+    md += "- Green: " + r.greenCorrect + " / " + r.greenTotal + "\n";
+    md += "- Green attempts: " + r.greenAttempts + "\n";
+    md += "- Clue earned: " + (r.clue ? "Yes" : "No") + "\n";
+    md += "- Yellow correct: " + r.yellowCorrect + "\n";
+    md += "- Yellow points: " + r.yellowPoints + "\n";
+    md += "- Red correct: " + r.redCorrect + "\n";
+    md += "- Red points: " + r.redPoints + "\n";
+    md += "- Total score: " + r.total + "\n";
+    md += "- Start time: " + r.start + "\n";
+    md += "- Finish time: " + r.finish + "\n";
+    md += "- Duration: " + r.duration + "\n";
+    md += "\n---\n\n";
+  });
+  const ranked = [...list].sort((a,b) => b.total - a.total);
+  if (ranked.length){
+    md += "## Scoreboard (Yellow + Red)\n\n";
+    md += "| Team | Yellow | Red | Total |\n| --- | ---: | ---: | ---: |\n";
+    ranked.forEach(r => { md += "| " + r.team + " | " + r.yellowPoints + " | " + r.redPoints + " | " + r.total + " |\n"; });
+    const best = ranked[0].total;
+    const winners = ranked.filter(r => r.total === best).map(r => r.team);
+    md += "\n**" + (winners.length > 1 ? "Tied leaders" : "Winner") + ": " + winners.join(", ") + " — " + best + " points**\n";
+  }
+  return md;
+}
+
+/* ---------- results.md file handle (File System Access API) ---------- */
+let fileHandle = null;
+const IDB_NAME = "securityControlStation4", IDB_STORE = "handles";
+function idb(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbSet(k,v){ try{ const db=await idb(); await new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,"readwrite");t.objectStore(IDB_STORE).put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error);}); }catch(e){} }
+async function idbGet(k){ try{ const db=await idb(); return await new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,"readonly");const q=t.objectStore(IDB_STORE).get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);}); }catch(e){ return null; } }
+
+const fsSupported = (typeof window.showSaveFilePicker === "function");
+
+async function pickResultsFile(){
+  if (!fsSupported){
+    alert("This browser cannot write files directly.\nUse EXPORT RESULTS.MD instead — it downloads the complete file with every team.");
+    return;
+  }
+  try{
+    fileHandle = await window.showSaveFilePicker({
+      suggestedName: "results.md",
+      types: [{ description: "Markdown", accept: { "text/markdown": [".md"] } }]
+    });
+    await idbSet("resultsFile", fileHandle);
+    await writeResultsFile();
+    updateFileStatus();
+  }catch(e){ /* user cancelled */ }
+}
+async function writeResultsFile(){
+  if (!fileHandle) return false;
+  try{
+    const perm = await fileHandle.queryPermission({ mode:"readwrite" });
+    if (perm !== "granted"){
+      const req = await fileHandle.requestPermission({ mode:"readwrite" });
+      if (req !== "granted") return false;
+    }
+    const w = await fileHandle.createWritable();
+    await w.write(buildMarkdown());
+    await w.close();
+    return true;
+  }catch(e){ console.warn("write failed", e); return false; }
+}
+function downloadResults(){
+  const blob = new Blob([buildMarkdown()], { type:"text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "results.md";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+function updateFileStatus(){
+  const el = $("fileStatus");
+  if (!el) return;
+  if (fileHandle) el.textContent = "results.md is connected — it is rewritten automatically after every team.";
+  else if (fsSupported) el.textContent = "No results file selected yet. Click SELECT RESULTS FILE once at the start of the lesson, or just export at the end.";
+  else el.textContent = "This browser cannot write files directly (that is fine). Use EXPORT RESULTS.MD — the download always contains every team.";
+}
+
+/* ---------- game state ---------- */
+let S = null;
+function freshState(team){
+  return {
+    team,
+    startedAt: Date.now(),
+    startClock: clockString(new Date()),
+    greenAttempts: 0,
+    greenLocked: stationData.green.map(q => blanksOf(q).map(() => false)),
+    greenValues: stationData.green.map(q => blanksOf(q).map(() => "")),
+    greenDone: false,
+    yellowIndex: 0, yellowCorrect: 0, yellowPoints: 0, yellowGiven: [], yellowRight: [],
+    redIndex: 0,    redCorrect: 0,    redPoints: 0,    redGiven: [],    redRight: []
+  };
+}
+
+/* ---------- screens ---------- */
+const SCREENS = ["screen-start","screen-green","screen-clue","screen-yellow","screen-yellow-review","screen-red","screen-red-review","screen-end"];
+function show(id){
+  SCREENS.forEach(s => $(s).classList.toggle("hidden", s !== id));
+  const map = { "screen-green":"g", "screen-clue":"g", "screen-yellow":"y", "screen-yellow-review":"y", "screen-red":"r", "screen-red-review":"r" };
+  ["railG","railY","railR"].forEach(r => $(r).classList.remove("active","done"));
+  const cur = map[id];
+  if (cur === "g"){ $("railG").classList.add("active"); }
+  if (cur === "y"){ $("railG").classList.add("done"); $("railY").classList.add("active"); }
+  if (cur === "r"){ $("railG").classList.add("done"); $("railY").classList.add("done"); $("railR").classList.add("active"); }
+  if (id === "screen-end"){ ["railG","railY","railR"].forEach(r => $(r).classList.add("done")); }
+  $("rail").style.display = (id === "screen-start") ? "none" : "flex";
+  window.scrollTo({ top:0, behavior:"smooth" });
+}
+
+/** Build the sentence HTML, replacing every ___ with an input. */
+function renderQuestion(q, idPrefix, values, locked){
+  const parts = q.question.split("___");
+  let html = "";
+  for (let i = 0; i < parts.length; i++){
+    html += esc(parts[i]);
+    if (i < parts.length - 1){
+      const v = values ? esc(values[i] || "") : "";
+      const isLocked = locked && locked[i];
+      html += '<input type="text" class="blank' + (isLocked ? " ok" : "") + '" autocomplete="off" spellcheck="false" ' +
+              'id="' + idPrefix + "_" + i + '" value="' + v + '"' + (isLocked ? " disabled" : "") + '>';
+    }
+  }
+  return html;
+}
+
+/* ================= GREEN ================= */
+function renderGreen(feedback){
+  const list = $("greenList");
+  list.innerHTML = "";
+  stationData.green.forEach((q, qi) => {
+    const li = document.createElement("li");
+    li.className = "qitem";
+    const state = feedback ? feedback[qi] : null;
+    if (state === true) li.classList.add("ok");
+    if (state === false) li.classList.add("bad");
+    li.innerHTML =
+      '<div class="qnum">' + two(qi+1) + '</div>' +
+      '<div class="qbody"><div class="qtext">' +
+        renderQuestion(q, "g"+qi, S.greenValues[qi], S.greenLocked[qi]) +
+      '</div><div class="mark ' + (state === true ? "ok" : state === false ? "bad" : "") + '">' +
+        (state === true ? "✓ Correct" : state === false ? "✗ Try again" : "") +
+      '</div></div>';
+    list.appendChild(li);
+  });
+  updateGreenCounter();
+}
+function greenQuestionCorrect(qi){
+  return S.greenLocked[qi].every(Boolean);
+}
+function updateGreenCounter(){
+  const n = stationData.green.filter((q,i) => greenQuestionCorrect(i)).length;
+  $("greenCounter").textContent = CONFIG.green.progressLabel + ": " + n + " / " + stationData.green.length;
+  $("greenBar").style.width = (100 * n / stationData.green.length) + "%";
+  return n;
+}
+function readGreenInputs(){
+  stationData.green.forEach((q, qi) => {
+    blanksOf(q).forEach((acc, bi) => {
+      const el = $("g" + qi + "_" + bi);
+      if (el) S.greenValues[qi][bi] = el.value;
+    });
+  });
+}
+function checkGreen(){
+  readGreenInputs();
+  S.greenAttempts++;
+  const feedback = stationData.green.map((q, qi) => {
+    const bl = blanksOf(q);
+    bl.forEach((acc, bi) => {
+      if (!S.greenLocked[qi][bi] && isAccepted(S.greenValues[qi][bi], acc)) S.greenLocked[qi][bi] = true;
+    });
+    return bl.every((acc, bi) => S.greenLocked[qi][bi]);
+  });
+  renderGreen(feedback);
+  const n = updateGreenCounter();
+  const total = stationData.green.length;
+  const wrong = total - n;
+  if (n === total){
+    S.greenDone = true;
+    $("greenMsg").style.color = "var(--green)";
+    $("greenMsg").textContent = total + " / " + total + " — " + CONFIG.green.progressLabel.toLowerCase() + ".";
+    setTimeout(showClue, 500);
+  } else {
+    $("greenMsg").style.color = "var(--yellow)";
+    $("greenMsg").textContent = n + " / " + total + " correct  —  correct the " + wrong + " remaining event" + (wrong === 1 ? "" : "s") + ". (Attempt " + S.greenAttempts + ")";
+    const firstWrong = document.querySelector("#greenList input.blank:not(:disabled)");
+    if (firstWrong){
+      firstWrong.classList.add("bad");
+      firstWrong.scrollIntoView({ block:"center", behavior:"smooth" });
+      firstWrong.focus();
+      firstWrong.select();
+    }
+  }
+}
+function showClue(){
+  $("clueWord").textContent = stationData.clue;
+  show("screen-clue");
+}
+
+/* ================= YELLOW / RED ================= */
+function renderLevel(level){
+  const isY = level === "yellow";
+  const data = isY ? stationData.yellow : stationData.red;
+  const idx  = isY ? S.yellowIndex : S.redIndex;
+  const q = data[idx];
+  $(isY ? "yellowCounter" : "redCounter").textContent = "Question " + (idx+1) + " / " + data.length;
+  $(isY ? "yellowBar" : "redBar").style.width = (100 * idx / data.length) + "%";
+  $(isY ? "yellowQ" : "redQ").innerHTML = renderQuestion(q, (isY?"y":"r") + idx, null, null);
+  $(isY ? "yellowErr" : "redErr").textContent = "";
+  const first = document.querySelector((isY ? "#yellowQ" : "#redQ") + " input");
+  if (first) first.focus();
+}
+function submitLevel(level){
+  const isY = level === "yellow";
+  const data = isY ? stationData.yellow : stationData.red;
+  const idx  = isY ? S.yellowIndex : S.redIndex;
+  const q = data[idx];
+  const bl = blanksOf(q);
+  const vals = bl.map((acc, bi) => {
+    const el = $((isY?"y":"r") + idx + "_" + bi);
+    return el ? el.value : "";
+  });
+  if (vals.some(v => norm(v) === "")){
+    $(isY ? "yellowErr" : "redErr").textContent = "Fill in every gap before you submit.";
+    return;
+  }
+  const allRight = bl.every((acc, bi) => isAccepted(vals[bi], acc));
+  const pts = q.points != null ? q.points : (isY ? 1 : 2);
+  if (isY){
+    S.yellowGiven[idx] = vals; S.yellowRight[idx] = allRight;
+    if (allRight){ S.yellowCorrect++; S.yellowPoints += pts; }
+    S.yellowIndex++;
+    if (S.yellowIndex < data.length) renderLevel("yellow");
+    else { renderReview("yellow"); show("screen-yellow-review"); }
+  } else {
+    S.redGiven[idx] = vals; S.redRight[idx] = allRight;
+    if (allRight){ S.redCorrect++; S.redPoints += pts; }
+    S.redIndex++;
+    if (S.redIndex < data.length) renderLevel("red");
+    else { renderReview("red"); show("screen-red-review"); }
+  }
+}
+
+/* ---------- answer review (shown AFTER the whole level is submitted) ---------- */
+function renderReview(level){
+  const isY   = level === "yellow";
+  const data  = isY ? stationData.yellow : stationData.red;
+  const given = isY ? S.yellowGiven : S.redGiven;
+  const right = isY ? S.yellowRight : S.redRight;
+  const list  = $(isY ? "yellowReview" : "redReview");
+  const pts   = isY ? S.yellowPoints : S.redPoints;
+  const nOk   = isY ? S.yellowCorrect : S.redCorrect;
+  $(isY ? "yellowScoreBig" : "redScoreBig").textContent =
+    (isY ? "YELLOW SCORE: " : "RED SCORE: ") + pts + " POINTS   (" + nOk + " / " + data.length + " correct)";
+
+  list.innerHTML = "";
+  data.forEach((q, qi) => {
+    const bl = blanksOf(q);
+    const ok = !!right[qi];
+    const mine = given[qi] || [];
+    // sentence with the model answers filled in
+    const parts = q.question.split("___");
+    let sentence = "";
+    for (let i = 0; i < parts.length; i++){
+      sentence += esc(parts[i]);
+      if (i < parts.length - 1) sentence += '<span class="fill good">' + esc(bl[i][0]) + '</span>';
+    }
+    const point = (q.points != null ? q.points : (isY ? 1 : 2));
+    let yours = "";
+    if (ok){
+      yours = '<div class="yours ok">✓ Correct — +' + point + ' point' + (point === 1 ? "" : "s") + '</div>';
+    } else {
+      const shown = bl.map((acc, bi) => (String(mine[bi] || "").trim() || "—")).join("  /  ");
+      yours = '<div class="yours">✗ Your answer: ' + esc(shown) + '  —  0 points</div>';
+    }
+    const li = document.createElement("li");
+    li.className = "qitem " + (ok ? "ok" : "bad");
+    li.innerHTML = '<div class="qnum">' + two(qi+1) + '</div><div class="qbody"><div class="qtext" style="line-height:1.8">' +
+                   sentence + '</div>' + yours + '</div>';
+    list.appendChild(li);
+  });
+}
+
+/* ================= FINISH ================= */
+function finish(){
+  const now = new Date();
+  const greenCorrectCount = stationData.green.filter((q,i) => greenQuestionCorrect(i)).length;
+  const greenComplete = greenCorrectCount === stationData.green.length;
+  const rec = {
+    team: S.team,
+    greenCorrect: greenCorrectCount,
+    greenTotal: stationData.green.length,
+    greenAttempts: S.greenAttempts,
+    clue: greenComplete,
+    yellowCorrect: S.yellowCorrect,
+    yellowPoints: S.yellowPoints,
+    redCorrect: S.redCorrect,
+    redPoints: S.redPoints,
+    total: S.yellowPoints + S.redPoints,
+    start: S.startClock,
+    finish: clockString(now),
+    duration: durationString(now.getTime() - S.startedAt)
+  };
+  const list = loadResults();
+  if (!list.some(r => norm(r.team) === norm(rec.team))){
+    list.push(rec);
+    saveResults(list);
+  }
+  writeResultsFile();
+
+  $("endTeam").textContent = rec.team;
+  const greenMark = greenComplete ? " ✓" : "";
+  const clueRow = greenComplete
+    ? '<b style="color:var(--green)">Unlocked ✓</b>'
+    : '<b style="color:var(--muted)">Not unlocked</b>';
+  $("endRows").innerHTML =
+    '<div class="row"><span>🟢 Green</span><b style="color:var(--green)">' + rec.greenCorrect + ' / ' + rec.greenTotal + greenMark + ' &nbsp;(0 points)</b></div>' +
+    '<div class="row"><span>🔓 Clue</span>' + clueRow + '</div>' +
+    '<div class="row"><span>🟡 Yellow — ' + rec.yellowCorrect + ' / ' + stationData.yellow.length + ' correct</span><b style="color:var(--yellow)">' + rec.yellowPoints + ' points</b></div>' +
+    '<div class="row"><span>🔴 Red — ' + rec.redCorrect + ' / ' + stationData.red.length + ' correct</span><b style="color:var(--red)">' + rec.redPoints + ' points</b></div>' +
+    '<div class="row"><span>Time used</span><b>' + rec.duration + '</b></div>';
+  $("endTotal").textContent = "TOTAL SCORE: " + rec.total + " POINTS";
+  $("finishStationBtn").classList.add("hidden");
+
+  const all = loadResults();
+  $("allDone").innerHTML = (all.length >= TOTAL_TEAMS)
+    ? '<h2 style="color:var(--green);margin-top:22px">' + esc(CONFIG.allTeamsHeadline) + '</h2>'
+    : "";
+
+  show("screen-end");
+}
+
+function gradeCurrentAndRemaining(level){
+  const isY = level === "yellow";
+  const data = isY ? stationData.yellow : stationData.red;
+  const idx  = isY ? S.yellowIndex : S.redIndex;
+  if (idx >= data.length) return;
+  const q = data[idx];
+  const bl = blanksOf(q);
+  const vals = bl.map((acc, bi) => {
+    const el = $((isY?"y":"r") + idx + "_" + bi);
+    return el ? el.value : "";
+  });
+  const allRight = vals.every(v => norm(v) !== "") && bl.every((acc, bi) => isAccepted(vals[bi], acc));
+  const pts = q.points != null ? q.points : (isY ? 1 : 2);
+  if (isY){ S.yellowGiven[idx] = vals; S.yellowRight[idx] = allRight; if (allRight){ S.yellowCorrect++; S.yellowPoints += pts; } S.yellowIndex++; }
+  else    { S.redGiven[idx] = vals; S.redRight[idx] = allRight; if (allRight){ S.redCorrect++; S.redPoints += pts; } S.redIndex++; }
+}
+
+function forceFinishStation(){
+  if (!S) return;
+  const current = SCREENS.find(id => !$(id).classList.contains("hidden"));
+  if (!current || current === "screen-start" || current === "screen-end") return;
+  if (!confirm("Finish the station now? Whatever " + S.team + " has entered will be submitted as final, and anything not yet answered counts as incorrect. This cannot be undone.")) return;
+  if (current === "screen-green"){
+    readGreenInputs();
+    S.greenAttempts++;
+    stationData.green.forEach((q, qi) => {
+      blanksOf(q).forEach((acc, bi) => {
+        if (!S.greenLocked[qi][bi] && isAccepted(S.greenValues[qi][bi], acc)) S.greenLocked[qi][bi] = true;
+      });
+    });
+  } else if (current === "screen-yellow"){
+    gradeCurrentAndRemaining("yellow");
+  } else if (current === "screen-red"){
+    gradeCurrentAndRemaining("red");
+  }
+  finish();
+}
+
+/* ================= START SCREEN ================= */
+function refreshStartScreen(){
+  const list = loadResults();
+  $("teamsList").innerHTML = list.map(r => '<span class="tag">✓ ' + esc(r.team) + '</span>').join("");
+  $("teamBadge").style.display = "none";
+  $("teamInput").value = "";
+  $("startErr").textContent = "";
+}
+function startGame(){
+  const name = $("teamInput").value.trim().replace(/\s+/g," ");
+  if (!name){ $("startErr").textContent = "Team name must not be empty."; return; }
+  if (loadResults().some(r => norm(r.team) === norm(name))){
+    $("startErr").textContent = "This team has already completed the station. Choose a different name or talk to the teacher.";
+    return;
+  }
+  S = freshState(name);
+  $("teamBadge").textContent = "TEAM: " + name;
+  $("teamBadge").style.display = "inline-block";
+  $("finishStationBtn").classList.remove("hidden");
+  $("greenMsg").textContent = "";
+  renderGreen(null);
+  show("screen-green");
+  const f = document.querySelector("#greenList input");
+  if (f) f.focus();
+}
+function nextTeam(){
+  S = null;
+  $("greenList").innerHTML = "";
+  $("greenMsg").textContent = "";
+  $("yellowQ").innerHTML = ""; $("redQ").innerHTML = "";
+  $("yellowReview").innerHTML = ""; $("redReview").innerHTML = "";
+  $("yellowScoreBig").textContent = ""; $("redScoreBig").textContent = "";
+  $("endRows").innerHTML = ""; $("endTotal").textContent = ""; $("endTeam").textContent = ""; $("allDone").innerHTML = "";
+  $("clueWord").textContent = "";
+  $("greenBar").style.width = "0"; $("yellowBar").style.width = "0"; $("redBar").style.width = "0";
+  $("finishStationBtn").classList.add("hidden");
+  refreshStartScreen();
+  show("screen-start");
+  $("teamInput").focus();
+}
+
+/* ================= TIME VORTEX BACKGROUND =================
+   Replaces the template's matrix rain with a canvas 2D time
+   vortex (rotating, receding rings + drifting sparks). No
+   library, no images, so the station still runs offline.
+   ========================================================== */
+(function vortex(){
+  const c = $("matrix"), ctx = c.getContext("2d");
+  const RINGS = 30, SEG = 54;
+  let w = 0, h = 0, t = 0, sparks = [];
+  function resize(){
+    w = c.width = window.innerWidth;
+    h = c.height = window.innerHeight;
+    sparks = new Array(70).fill(0).map(() => ({
+      a: Math.random() * Math.PI * 2,
+      p: Math.random(),
+      s: 0.0016 + Math.random() * 0.0042
+    }));
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  function frame(){
+    const cx = w * 0.5, cy = h * 0.42, R = Math.max(w, h) * 0.98;
+    ctx.fillStyle = "rgba(1,7,17,0.30)";
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = "lighter";
+
+    // receding rings
+    for (let i = 0; i < RINGS; i++){
+      const p = ((i / RINGS) + t) % 1;              // 0 = far away, 1 = past the camera
+      const r = Math.pow(p, 2.5) * R;
+      if (r < 4) continue;
+      const fade = Math.min(1, p * 3.4) * (1 - p * 0.55);
+      const spin = p * 2.4 + t * 3.2;
+      ctx.beginPath();
+      for (let k = 0; k <= SEG; k++){
+        const ang = (k / SEG) * Math.PI * 2;
+        const wob = 1 + 0.17 * Math.sin(ang * 3 + i * 0.8 + t * 9)
+                      + 0.09 * Math.sin(ang * 5 - i * 0.5 - t * 6);
+        const x = cx + Math.cos(ang + spin) * r * wob * 1.18;
+        const y = cy + Math.sin(ang + spin) * r * wob;
+        k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.closePath();
+      ctx.lineWidth = 1 + p * 2.6;
+      ctx.strokeStyle = (i % 6 === 0)
+        ? "rgba(255,176,72," + (fade * 0.55).toFixed(3) + ")"
+        : "rgba(74,158,255," + (fade * 0.48).toFixed(3) + ")";
+      ctx.stroke();
+    }
+
+    // sparks flying out of the vortex mouth
+    for (const s of sparks){
+      s.p += s.s;
+      if (s.p > 1){ s.p = 0; s.a = Math.random() * Math.PI * 2; }
+      const r = Math.pow(s.p, 2.5) * R;
+      const x = cx + Math.cos(s.a + s.p * 2.4 + t * 3.2) * r * 1.18;
+      const y = cy + Math.sin(s.a + s.p * 2.4 + t * 3.2) * r;
+      const al = Math.min(1, s.p * 3) * (1 - s.p) * 0.9;
+      ctx.fillStyle = "rgba(198,228,255," + al.toFixed(3) + ")";
+      ctx.fillRect(x, y, 1.6 + s.p * 2, 1.6 + s.p * 2);
+    }
+
+    // the bright heart of the vortex
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.16);
+    g.addColorStop(0, "rgba(226,242,255,0.30)");
+    g.addColorStop(0.35, "rgba(96,176,255,0.14)");
+    g.addColorStop(1, "rgba(10,40,90,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.globalCompositeOperation = "source-over";
+    t = (t + 0.0021) % 1;
+  }
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    frame();                       // one still frame, no animation
+  } else {
+    setInterval(frame, 40);
+  }
+})();
+
+/* ================= WIRING ================= */
+$("startBtn").addEventListener("click", startGame);
+$("teamInput").addEventListener("keydown", e => { if (e.key === "Enter") startGame(); });
+$("greenCheck").addEventListener("click", checkGreen);
+$("greenList").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") checkGreen(); });
+$("toYellow").addEventListener("click", () => { show("screen-yellow"); renderLevel("yellow"); });
+$("yellowSubmit").addEventListener("click", () => submitLevel("yellow"));
+$("redSubmit").addEventListener("click", () => submitLevel("red"));
+$("yellowQ").addEventListener("keydown", e => { if (e.key === "Enter") submitLevel("yellow"); });
+$("redQ").addEventListener("keydown", e => { if (e.key === "Enter") submitLevel("red"); });
+$("toRed").addEventListener("click", () => { show("screen-red"); renderLevel("red"); });
+$("toEnd").addEventListener("click", finish);
+$("nextTeam").addEventListener("click", nextTeam);
+$("finishStationBtn").addEventListener("click", forceFinishStation);
+$("endExport").addEventListener("click", async () => { const ok = await writeResultsFile(); if (!ok) downloadResults(); });
+
+/* ---------- apply CONFIG text/labels to the page (runs once, before boot) ---------- */
+function applyConfig(){
+  document.title = CONFIG.gameName + " — " + CONFIG.stationLabel;
+  $("brandName").textContent = CONFIG.gameName;
+  $("brandStation").textContent = CONFIG.stationLabel;
+  $("railGLabel").textContent = CONFIG.green.railLabel;
+  $("railYLabel").textContent = CONFIG.yellow.railLabel;
+  $("railRLabel").textContent = CONFIG.red.railLabel;
+  $("startTitle").textContent = CONFIG.gameName;
+  $("startSubtitle").textContent = CONFIG.subtitle;
+  $("introText").innerHTML = CONFIG.introHTML;
+  $("startBtn").textContent = CONFIG.startButtonLabel;
+  $("greenTitle").textContent = CONFIG.green.panelTitle;
+  $("greenSubheading").textContent = CONFIG.green.subheading;
+  $("greenInstructions").innerHTML = CONFIG.green.instructionsHTML;
+  $("greenCompleteHeadline").textContent = CONFIG.green.completeHeadline;
+  $("yellowTitle").textContent = CONFIG.yellow.panelTitle;
+  $("yellowInstructions").innerHTML = CONFIG.yellow.instructionsHTML;
+  $("yellowReviewTopic").textContent = CONFIG.yellow.reviewTopic;
+  $("redTitle").textContent = CONFIG.red.panelTitle;
+  $("redInstructions").innerHTML = CONFIG.red.instructionsHTML;
+  $("redReviewTopic").textContent = CONFIG.red.reviewTopic;
+  $("missionCompleteHeadline").textContent = CONFIG.missionCompleteHeadline;
+  $("endStationLabel").textContent = CONFIG.stationLabel;
+}
+
+/* boot */
+(async function boot(){
+  applyConfig();
+  const h = await idbGet("resultsFile");
+  if (h) fileHandle = h;
+  updateFileStatus();
+  refreshStartScreen();
+  show("screen-start");
+})();
+</script>
+</body>
+</html>

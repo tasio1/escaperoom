@@ -528,7 +528,8 @@ const CONFIG = {
     oneShotHTML: "Nur <b>ein</b> Versuch pro Satz. Die erste Antwort zählt. <i>One attempt only.</i>",
     // Word bank shown beside every Yellow question. Empty string = panel hidden.
     asideHTML:
-      "<span class='ttl'>Wortkiste · word bank</span>Setzt das richtige Wort ein — <i>drei Wörter bleiben übrig.</i>" +
+      "<span class='ttl'>Wortkiste · word bank</span>Setzt das richtige Wort ein. Nicht alle Wörter werden " +
+      "gebraucht, und manche passen mehrmals. <i>Not every word is needed, and some fit more than once.</i>" +
       "<div class='bank'><span>Jacke</span><span>Hose</span><span>T-Shirt</span><span>Schuhe</span>" +
       "<span>Mütze</span><span>Rock</span><span>Socken</span><span>Schal</span></div>",
     reviewNote: "Lest die richtige Fassung jedes Satzes. Euer Gelb-Ergebnis ist schon gespeichert und ändert sich nicht mehr. <i>Your Yellow score is already saved.</i>"
@@ -569,6 +570,9 @@ const CONFIG = {
    YELLOW is gap-filling. Every  ___  becomes an input box.
        answers: ["Schuhe", "die Schuhe"]     <- list every acceptable spelling
        Two gaps ->  answers: [ ["a","b"], ["c"] ]   (one list per gap)
+       model: "Schuhe / Socken"              <- OPTIONAL. Only changes what the
+       review screen prints in the gap. Use it when two different words are both
+       genuinely right, so the class sees both instead of just the first one.
 
    RED is Richtig / Falsch. Give the statement as "question", add
        choices: ["Richtig","Falsch"]  and the correct one in answers.
@@ -610,8 +614,11 @@ const stationData = {
 
   /* ---- 🟡 YELLOW — Was trägst du? — +1 point each ---- */
   yellow: [
+    // Both are true on your feet, so both score. "model" is only what the review shows.
     { question: "An den Füßen trage ich ___.",
-      answers: ["Schuhe", "die Schuhe", "meine Schuhe"], points: 1 },
+      answers: ["Schuhe", "die Schuhe", "meine Schuhe",
+                "Socken", "die Socken", "meine Socken"],
+      model: "Schuhe / Socken", points: 1 },
 
     { question: "Wenn es kalt ist, trage ich eine ___ auf dem Kopf.",
       answers: ["Mütze", "Muetze", "Mutze"], points: 1 },
@@ -1014,6 +1021,14 @@ function submitLevel(level){
   }
 }
 
+/** What the review screen SHOWS in a gap. Defaults to the first accepted answer;
+ *  a question may override it with "model" (a string, or one string per gap) when
+ *  more than one answer is genuinely correct and students should see both. */
+function modelFor(q, bl, i){
+  if (q.model != null) return Array.isArray(q.model) ? q.model[i] : q.model;
+  return bl[i][0];
+}
+
 /* ---------- answer review (shown AFTER the whole level is submitted) ---------- */
 function renderReview(level){
   const isY   = level === "yellow";
@@ -1033,13 +1048,13 @@ function renderReview(level){
     const mine = given[qi] || [];
     let sentence;
     if (q.choices){
-      sentence = escBr(q.question) + ' &nbsp;→&nbsp; <span class="fill good">' + esc(bl[0][0]) + '</span>';
+      sentence = escBr(q.question) + ' &nbsp;→&nbsp; <span class="fill good">' + esc(modelFor(q, bl, 0)) + '</span>';
     } else {
       const parts = String(q.question).split("___");
       sentence = "";
       for (let i = 0; i < parts.length; i++){
         sentence += escBr(parts[i]);
-        if (i < parts.length - 1) sentence += '<span class="fill good">' + esc(bl[i][0]) + '</span>';
+        if (i < parts.length - 1) sentence += '<span class="fill good">' + esc(modelFor(q, bl, i)) + '</span>';
       }
     }
     const point = (q.points != null ? q.points : (isY ? 1 : 2));
